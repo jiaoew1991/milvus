@@ -62,12 +62,31 @@ using Timestamp = uint64_t;  // TODO: use TiKV-like timestamp
 constexpr auto MAX_TIMESTAMP = std::numeric_limits<Timestamp>::max();
 constexpr auto MAX_ROW_COUNT = std::numeric_limits<idx_t>::max();
 
-using ScalarArray = proto::schema::ScalarField;
-using DataArray = proto::schema::FieldData;
-using VectorArray = proto::schema::VectorField;
+//struct DataArray {
+//    DataType data_type;
+//    std::string field_name;
+//    int64_t field_id;
+//    int64_t dim;
+//    std::shared_ptr<arrow::Array> data;
+//};
+
+constexpr auto METADATA_FIELD_ID_KEY = 100;
+
+struct DataArray {
+    DataType type;
+    std::shared_ptr<arrow::Field> field;
+    std::shared_ptr<arrow::Array> data;
+};
+
+struct RetrieveArray {
+    std::shared_ptr<arrow::Array> ids;
+    std::shared_ptr<arrow::Array> offset;
+    std::shared_ptr<arrow::RecordBatch> fields_data;
+};
+
 using IdArray = arrow::Array;
 using MetricType = faiss::MetricType;
-using InsertData = proto::segcore::InsertRecord;
+using InsertData = arrow::RecordBatch;
 using PkType = std::variant<std::monostate, int64_t, std::string>;
 using Pk2OffsetType = tbb::concurrent_unordered_multimap<PkType, int64_t, std::hash<PkType>>;
 

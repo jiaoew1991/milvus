@@ -68,10 +68,23 @@ typedef struct CProto {
     int64_t proto_size;
 } CProto;
 
+//typedef struct CLoadFieldDataInfo {
+//    int type;
+//    const char* field_name;
+//    int64_t field_id;
+//    int64_t dim;
+//    void* data_array;
+//    void* schema;
+//    int64_t row_count;
+//} CLoadFieldDataInfo;
+
 typedef struct CLoadFieldDataInfo {
+    int type;
     int64_t field_id;
-    const uint8_t* blob;
-    uint64_t blob_size;
+//    const uint8_t* blob;
+//    uint64_t blob_size;
+    void* data_array;
+    void* schema;
     int64_t row_count;
 } CLoadFieldDataInfo;
 

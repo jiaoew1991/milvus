@@ -20,12 +20,12 @@ namespace milvus::query {
 class SubSearchResult {
  public:
     SubSearchResult(int64_t num_queries, int64_t topk, MetricType metric_type, int64_t round_decimal)
-        : metric_type_(metric_type),
-          num_queries_(num_queries),
+        : num_queries_(num_queries),
           topk_(topk),
+          round_decimal_(round_decimal),
+          metric_type_(metric_type),
           seg_offsets_(num_queries * topk, -1),
-          distances_(num_queries * topk, init_value(metric_type)),
-          round_decimal_(round_decimal) {
+          distances_(num_queries * topk, init_value(metric_type)) {
     }
 
  public:

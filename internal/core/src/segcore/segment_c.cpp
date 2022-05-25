@@ -139,15 +139,14 @@ Insert(CSegmentInterface c_segment,
        int64_t size,
        const int64_t* row_ids,
        const uint64_t* timestamps,
-       const uint8_t* data_info,
-       const uint64_t data_info_len) {
+       void* array,
+       void* schema) {
     try {
         auto segment = (milvus::segcore::SegmentGrowing*)c_segment;
-        auto insert_data = std::make_unique<milvus::InsertData>();
-        auto suc = insert_data->ParseFromArray(data_info, data_info_len);
-        AssertInfo(suc, "failed to parse insert data from records");
+        auto array_result = arrow::ImportRecordBatch((ArrowArray*) array, (ArrowSchema*) schema);
+        AssertInfo(array_result.ok(), "failed to parse insert data from records");
 
-        segment->Insert(reserved_offset, size, row_ids, timestamps, insert_data.get());
+        segment->Insert(reserved_offset, size, row_ids, timestamps, array_result.ValueOrDie().get());
         return milvus::SuccessCStatus();
     } catch (std::exception& e) {
         return milvus::FailureCStatus(UnexpectedError, e.what());
@@ -195,11 +194,13 @@ LoadFieldData(CSegmentInterface c_segment, CLoadFieldDataInfo load_field_data_in
         auto segment_interface = reinterpret_cast<milvus::segcore::SegmentInterface*>(c_segment);
         auto segment = dynamic_cast<milvus::segcore::SegmentSealed*>(segment_interface);
         AssertInfo(segment != nullptr, "segment conversion failed");
-        auto field_data = std::make_unique<milvus::DataArray>();
-        auto suc = field_data->ParseFromArray(load_field_data_info.blob, load_field_data_info.blob_size);
-        AssertInfo(suc, "unmarshal field data string failed");
-        auto load_info =
-            LoadFieldDataInfo{load_field_data_info.field_id, field_data.get(), load_field_data_info.row_count};
+        auto schema = (ArrowSchema*) load_field_data_info.schema;
+        auto array_result = arrow::ImportArray((ArrowArray*) load_field_data_info.data_array, schema);
+        AssertInfo(array_result.ok(), "unmarshal data failed");
+        auto field_result = arrow::ImportField(schema);
+        AssertInfo(field_result.ok(), "unmarshal field info failed");
+        auto data_array = milvus::DataArray{ milvus::DataType(load_field_data_info.type), field_result.ValueOrDie(), array_result.ValueOrDie() };
+        auto load_info = LoadFieldDataInfo{load_field_data_info.field_id, &data_array, load_field_data_info.row_count};
         segment->LoadFieldData(load_info);
         return milvus::SuccessCStatus();
     } catch (std::exception& e) {

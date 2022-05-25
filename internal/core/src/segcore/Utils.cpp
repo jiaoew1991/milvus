@@ -14,7 +14,7 @@
 namespace milvus::segcore {
 
 void
-ParsePksFromFieldData(std::vector<PkType>& pks, const DataArray& data) {
+ParsePksFromFieldData(std::vector<PkType>& pks, const milvus::proto::schema::FieldData& data) {
     switch (DataType(data.type())) {
         case DataType::INT64: {
             auto source_data = reinterpret_cast<const int64_t*>(data.scalars().long_data().data().data());
@@ -60,10 +60,10 @@ GetSizeOfIdArray(const IdArray& data) {
 
 // Note: this is temporary solution.
 // modify bulk script implement to make process more clear
-std::unique_ptr<DataArray>
+std::unique_ptr<milvus::proto::schema::FieldData>
 CreateScalarDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& field_meta) {
     auto data_type = field_meta.get_data_type();
-    auto data_array = std::make_unique<DataArray>();
+    auto data_array = std::make_unique<milvus::proto::schema::FieldData>();
     data_array->set_field_id(field_meta.get_id().get());
     data_array->set_type(milvus::proto::schema::DataType(field_meta.get_data_type()));
 
@@ -125,10 +125,10 @@ CreateScalarDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& 
     return data_array;
 }
 
-std::unique_ptr<DataArray>
+std::unique_ptr<milvus::proto::schema::FieldData>
 CreateVectorDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& field_meta) {
     auto data_type = field_meta.get_data_type();
-    auto data_array = std::make_unique<DataArray>();
+    auto data_array = std::make_unique<milvus::proto::schema::FieldData>();
     data_array->set_field_id(field_meta.get_id().get());
     data_array->set_type(milvus::proto::schema::DataType(field_meta.get_data_type()));
 
@@ -158,7 +158,7 @@ CreateVectorDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& 
     return data_array;
 }
 
-std::unique_ptr<DataArray>
+std::unique_ptr<milvus::proto::schema::FieldData>
 CreateDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& field_meta) {
     auto data_type = field_meta.get_data_type();
 
@@ -170,10 +170,10 @@ CreateDataArrayFrom(const void* data_raw, int64_t count, const FieldMeta& field_
 }
 
 // TODO remove merge dataArray, instead fill target entity when get data slice
-std::unique_ptr<DataArray>
+std::unique_ptr<milvus::proto::schema::FieldData>
 MergeDataArray(std::vector<std::pair<milvus::SearchResult*, int64_t>>& result_offsets, const FieldMeta& field_meta) {
     auto data_type = field_meta.get_data_type();
-    auto data_array = std::make_unique<DataArray>();
+    auto data_array = std::make_unique<milvus::proto::schema::FieldData>();
     data_array->set_field_id(field_meta.get_id().get());
     data_array->set_type(milvus::proto::schema::DataType(field_meta.get_data_type()));
 

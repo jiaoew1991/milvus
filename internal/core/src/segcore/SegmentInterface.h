@@ -50,7 +50,7 @@ class SegmentInterface {
     virtual std::unique_ptr<SearchResult>
     Search(const query::Plan* Plan, const query::PlaceholderGroup& placeholder_group, Timestamp timestamp) const = 0;
 
-    virtual std::unique_ptr<proto::segcore::RetrieveResults>
+    virtual std::unique_ptr<milvus::RetrieveArray>
     Retrieve(const query::RetrievePlan* Plan, Timestamp timestamp) const = 0;
 
     // TODO: memory use is not correct when load string or load string index
@@ -105,7 +105,7 @@ class SegmentInternalInterface : public SegmentInterface {
     void
     FillTargetEntry(const query::Plan* plan, SearchResult& results) const override;
 
-    std::unique_ptr<proto::segcore::RetrieveResults>
+    std::unique_ptr<milvus::RetrieveArray>
     Retrieve(const query::RetrievePlan* plan, Timestamp timestamp) const override;
 
     virtual bool
@@ -172,7 +172,7 @@ class SegmentInternalInterface : public SegmentInterface {
     bulk_subscript(SystemFieldType system_type, const int64_t* seg_offsets, int64_t count, void* output) const = 0;
 
     // calculate output[i] = Vec[seg_offsets[i]}, where Vec binds to field_offset
-    virtual std::unique_ptr<DataArray>
+    virtual std::unique_ptr<milvus::proto::schema::FieldData>
     bulk_subscript(FieldId field_id, const int64_t* seg_offsets, int64_t count) const = 0;
 
     virtual void

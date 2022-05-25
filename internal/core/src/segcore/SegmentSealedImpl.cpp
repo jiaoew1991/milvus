@@ -137,23 +137,24 @@ SegmentSealedImpl::LoadFieldData(const LoadFieldDataInfo& info) {
     if (SystemProperty::Instance().IsSystem(field_id)) {
         auto system_field_type = SystemProperty::Instance().GetSystemFieldType(field_id);
         if (system_field_type == SystemFieldType::Timestamp) {
-            auto timestamps = reinterpret_cast<const Timestamp*>(info.field_data->scalars().long_data().data().data());
+            auto source_data = arrow::UInt64Array(info.field_data->data->data());
 
             TimestampIndex index;
             auto min_slice_length = size < 4096 ? 1 : 4096;
-            auto meta = GenerateFakeSlices(timestamps, size, min_slice_length);
+            auto meta = GenerateFakeSlices(source_data.raw_values(), size, min_slice_length);
             index.set_length_meta(std::move(meta));
-            index.build_with(timestamps, size);
+            index.build_with(source_data.raw_values(), size);
 
             // use special index
             std::unique_lock lck(mutex_);
             AssertInfo(insert_record_.timestamps_.empty(), "already exists");
-            insert_record_.timestamps_.fill_chunk_data(timestamps, size);
+            insert_record_.timestamps_.fill_chunk_data(source_data.raw_values(), size);
             insert_record_.timestamp_index_ = std::move(index);
             AssertInfo(insert_record_.timestamps_.num_chunk() == 1, "num chunk not equal to 1 for sealed segment");
         } else {
             AssertInfo(system_field_type == SystemFieldType::RowId, "System field type of id column is not RowId");
-            auto row_ids = reinterpret_cast<const idx_t*>(info.field_data->scalars().long_data().data().data());
+            auto source_data = arrow::Int64Array(info.field_data->data->data());
+            auto row_ids = source_data.raw_values();
             // write data under lock
             std::unique_lock lck(mutex_);
             AssertInfo(insert_record_.row_ids_.empty(), "already exists");
@@ -163,9 +164,9 @@ SegmentSealedImpl::LoadFieldData(const LoadFieldDataInfo& info) {
         ++system_ready_count_;
     } else {
         // prepare data
-        auto& field_meta = schema_->operator[](field_id);
+        auto& field_meta = (*schema_)[field_id];
         auto data_type = field_meta.get_data_type();
-        AssertInfo(data_type == DataType(info.field_data->type()),
+        AssertInfo(data_type == DataType(info.field_data->type),
                    "field type of load data is inconsistent with the schema");
         auto field_data = insert_record_.get_field_data_base(field_id);
         AssertInfo(field_data->empty(), "already exists");
@@ -409,11 +410,11 @@ SegmentSealedImpl::check_search(const query::Plan* plan) const {
 }
 
 SegmentSealedImpl::SegmentSealedImpl(SchemaPtr schema, int64_t segment_id)
-    : schema_(schema),
-      insert_record_(*schema, MAX_ROW_COUNT),
-      field_data_ready_bitset_(schema->size()),
+    : field_data_ready_bitset_(schema->size()),
       vecindex_ready_bitset_(schema->size()),
       scalar_indexings_(schema->size()),
+      insert_record_(*schema, MAX_ROW_COUNT),
+      schema_(schema),
       id_(segment_id) {
 }
 
@@ -458,7 +459,7 @@ SegmentSealedImpl::bulk_subscript_impl(
     }
 }
 
-std::unique_ptr<DataArray>
+std::unique_ptr<milvus::proto::schema::FieldData>
 SegmentSealedImpl::fill_with_empty(FieldId field_id, int64_t count) const {
     auto& field_meta = schema_->operator[](field_id);
     switch (field_meta.get_data_type()) {
@@ -507,7 +508,7 @@ SegmentSealedImpl::fill_with_empty(FieldId field_id, int64_t count) const {
     }
 }
 
-std::unique_ptr<DataArray>
+std::unique_ptr<milvus::proto::schema::FieldData>
 SegmentSealedImpl::bulk_subscript(FieldId field_id, const int64_t* seg_offsets, int64_t count) const {
     if (!HasFieldData(field_id)) {
         return fill_with_empty(field_id, count);
@@ -690,7 +691,7 @@ SegmentSealedImpl::search_ids(const BitsetType& bitset, Timestamp timestamp) con
 std::vector<SegOffset>
 SegmentSealedImpl::search_ids(const BitsetView& bitset, Timestamp timestamp) const {
     std::vector<SegOffset> dst_offset;
-    for (int i = 0; i < bitset.size(); i++) {
+    for (size_t i = 0; i < bitset.size(); i++) {
         if (!bitset.test(i)) {
             auto offset = SegOffset(i);
             if (insert_record_.timestamps_[offset.get()] <= timestamp) {

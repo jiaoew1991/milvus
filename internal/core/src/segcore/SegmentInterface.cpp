@@ -64,47 +64,31 @@ SegmentInternalInterface::Search(const query::Plan* plan,
     return results;
 }
 
-std::unique_ptr<proto::segcore::RetrieveResults>
+std::unique_ptr<milvus::RetrieveArray>
 SegmentInternalInterface::Retrieve(const query::RetrievePlan* plan, Timestamp timestamp) const {
     std::shared_lock lck(mutex_);
-    auto results = std::make_unique<proto::segcore::RetrieveResults>();
+    auto results = std::make_unique<milvus::RetrieveArray>();
     query::ExecPlanNodeVisitor visitor(*this, timestamp);
     auto retrieve_results = visitor.get_retrieve_result(*plan->plan_node_);
     retrieve_results.segment_ = (void*)this;
 
-    results->mutable_offset()->Add(retrieve_results.result_offsets_.begin(), retrieve_results.result_offsets_.end());
-
-    auto fields_data = results->mutable_fields_data();
-    auto ids = results->mutable_ids();
     auto pk_field_id = plan->schema_.get_primary_field_id();
+    int column_idx = 0;
     for (auto field_id : plan->field_ids_) {
         auto& field_mata = plan->schema_[field_id];
 
         auto col =
             bulk_subscript(field_id, retrieve_results.result_offsets_.data(), retrieve_results.result_offsets_.size());
         auto col_data = col.release();
-        fields_data->AddAllocated(col_data);
+        results->fields_data->AddColumn(column_idx, col_data->field, col_data->data);
         if (pk_field_id.has_value() && pk_field_id.value() == field_id) {
-            switch (field_mata.get_data_type()) {
-                case DataType::INT64: {
-                    auto int_ids = ids->mutable_int_id();
-                    auto src_data = col_data->scalars().long_data();
-                    int_ids->mutable_data()->Add(src_data.data().begin(), src_data.data().end());
-                    break;
-                }
-                case DataType::VARCHAR: {
-                    auto str_ids = ids->mutable_str_id();
-                    auto src_data = col_data->scalars().string_data();
-                    for (auto i = 0; i < src_data.data_size(); ++i)
-                        *(str_ids->mutable_data()->Add()) = src_data.data(i);
-                    break;
-                }
-                default: {
-                    PanicInfo("unsupported data type");
-                }
-            }
+            results->ids = arrow::MakeArray(col_data->data->data()->Copy());
         }
+        column_idx++;
     }
+    auto offset_builder = arrow::Int64Builder();
+    offset_builder.AppendValues(retrieve_results.result_offsets_);
+    results->offset = offset_builder.Finish().ValueOrDie();
     return results;
 }
 }  // namespace milvus::segcore

@@ -70,9 +70,6 @@ class SegmentInterface {
 
     virtual void
     LoadDeletedRecord(const LoadDeletedRecordInfo& info) = 0;
-
-    virtual int64_t
-    get_segment_id() const = 0;
 };
 
 // internal API for DSL calculation

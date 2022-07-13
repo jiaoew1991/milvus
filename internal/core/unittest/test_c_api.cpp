@@ -111,6 +111,7 @@ generate_max_float_query_data(int all_nq, int max_float_nq) {
     }
     auto blob = raw_group.SerializeAsString();
     return blob;
+
 }
 
 std::string
@@ -1149,12 +1150,14 @@ TEST(CApiTest, ReudceNullResult) {
         EXPECT_EQ(size, num_queries / 2);
 
         DeleteSearchResult(res);
+
     }
 
     DeleteSearchPlan(plan);
     DeletePlaceholderGroup(placeholderGroup);
     DeleteCollection(collection);
     DeleteSegment(segment);
+
 }
 
 TEST(CApiTest, ReduceRemoveDuplicates) {

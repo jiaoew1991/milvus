@@ -49,8 +49,8 @@ func NewPmsFactory(config *paramtable.PulsarConfig) *PmsFactory {
 	return &PmsFactory{
 		PulsarBufSize:    1024,
 		ReceiveBufSize:   1024,
-		PulsarAddress:    config.Address,
-		PulsarWebAddress: config.WebAddress,
+		PulsarAddress:    config.Address.GetAsString(),
+		PulsarWebAddress: config.WebAddress.GetAsString(),
 	}
 }
 
@@ -79,6 +79,7 @@ func (f *PmsFactory) NewQueryMsgStream(ctx context.Context) (MsgStream, error) {
 
 func (f *PmsFactory) NewMsgStreamDisposer(ctx context.Context) func([]string, string) error {
 	return func(channels []string, subname string) error {
+		cmdutils.PulsarCtlConfig.WebServiceURL = f.PulsarWebAddress
 		// try to delete the old subscription
 		admin := cmdutils.NewPulsarClient()
 		for _, channel := range channels {

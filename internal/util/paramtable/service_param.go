@@ -27,7 +27,6 @@ import (
 	"github.com/milvus-io/milvus/internal/log"
 	"github.com/milvus-io/milvus/internal/util"
 	"github.com/milvus-io/milvus/internal/util/metricsinfo"
-	"github.com/streamnative/pulsarctl/pkg/cmdutils"
 	"go.uber.org/zap"
 )
 
@@ -195,18 +194,17 @@ func (p *EtcdConfig) initEtcdTLSMinVersion() {
 }
 
 type LocalStorageConfig struct {
-	Base *BaseTable
-
-	Path string
+	Path ParamItem
 }
 
 func (p *LocalStorageConfig) init(base *BaseTable) {
-	p.Base = base
-	p.initPath()
-}
-
-func (p *LocalStorageConfig) initPath() {
-	p.Path = p.Base.LoadWithDefault("localStorage.path", "/var/lib/milvus/data")
+	p.Path = ParamItem{
+		Key:          "localStorage.path",
+		Version:      "2.0.0",
+		DefaultValue: "/var/lib/milvus/data",
+		Refreshable:  false,
+	}
+	p.Path.Init(base.mgr)
 }
 
 type MetaStoreConfig struct {
@@ -303,211 +301,235 @@ func (p *MetaDBConfig) initMaxIdleConns() {
 ///////////////////////////////////////////////////////////////////////////////
 // --- pulsar ---
 type PulsarConfig struct {
-	Base *BaseTable
-
-	Address        string
-	WebAddress     string
-	MaxMessageSize int
+	Address        ParamItem
+	Port           ParamItem
+	WebAddress     ParamItem
+	WebPort        ParamItem
+	MaxMessageSize ParamItem
 }
 
 func (p *PulsarConfig) init(base *BaseTable) {
-	p.Base = base
-
-	p.initAddress()
-	p.initWebAddress()
-	p.initMaxMessageSize()
-}
-
-func (p *PulsarConfig) initAddress() {
-	pulsarHost := p.Base.LoadWithDefault("pulsar.address", "")
-	if strings.Contains(pulsarHost, ":") {
-		p.Address = pulsarHost
-		return
+	p.Port = ParamItem{
+		Key:          "pulsar.port",
+		Version:      "2.0.0",
+		DefaultValue: "6650",
+		Refreshable:  false,
 	}
+	p.Port.Init(base.mgr)
 
-	port := p.Base.LoadWithDefault("pulsar.port", "")
-	if len(pulsarHost) != 0 && len(port) != 0 {
-		p.Address = "pulsar://" + pulsarHost + ":" + port
+	p.Address = ParamItem{
+		Key:          "pulsar.address",
+		Version:      "2.0.0",
+		DefaultValue: "localhost",
+		Refreshable:  false,
+		GetFunc: func(addr string) string {
+			if addr == "" {
+				return ""
+			}
+			if strings.Contains(addr, ":") {
+				return addr
+			}
+			port, _ := p.Port.GetValue()
+			return "pulsar://" + addr + ":" + port
+		},
 	}
-}
+	p.Address.Init(base.mgr)
 
-func (p *PulsarConfig) initWebAddress() {
-	if p.Address == "" {
-		return
+	p.WebPort = ParamItem{
+		Key:          "pulsar.webport",
+		Version:      "2.0.0",
+		DefaultValue: "80",
+		Refreshable:  true,
 	}
+	p.WebPort.Init(base.mgr)
 
-	pulsarURL, err := url.ParseRequestURI(p.Address)
-	if err != nil {
-		p.WebAddress = ""
-		log.Info("failed to parse pulsar config, assume pulsar not used", zap.Error(err))
-	} else {
-		webport := p.Base.LoadWithDefault("pulsar.webport", "80")
-		p.WebAddress = "http://" + pulsarURL.Hostname() + ":" + webport
+	p.WebAddress = ParamItem{
+		Key:          "pulsar.webaddress",
+		Version:      "2.0.0",
+		DefaultValue: "",
+		Refreshable:  false,
+		GetFunc: func(add string) string {
+			pulsarURL, err := url.ParseRequestURI(p.Address.GetAsString())
+			if err != nil {
+				log.Info("failed to parse pulsar config, assume pulsar not used", zap.Error(err))
+				return ""
+			}
+			return "http://" + pulsarURL.Hostname() + ":" + p.WebPort.GetAsString()
+		},
 	}
-	pulsarOnce.Do(func() {
-		cmdutils.PulsarCtlConfig.WebServiceURL = p.WebAddress
-	})
-}
+	p.WebAddress.Init(base.mgr)
 
-func (p *PulsarConfig) initMaxMessageSize() {
-	maxMessageSizeStr, err := p.Base.Load("pulsar.maxMessageSize")
-	if err != nil {
-		p.MaxMessageSize = SuggestPulsarMaxMessageSize
-	} else {
-		maxMessageSize, err := strconv.Atoi(maxMessageSizeStr)
-		if err != nil {
-			p.MaxMessageSize = SuggestPulsarMaxMessageSize
-		} else {
-			p.MaxMessageSize = maxMessageSize
-		}
+	p.MaxMessageSize = ParamItem{
+		Key:          "pulsar.maxMessageSize",
+		Version:      "2.0.0",
+		DefaultValue: strconv.Itoa(SuggestPulsarMaxMessageSize),
+		Refreshable:  true,
 	}
+	p.MaxMessageSize.Init(base.mgr)
+
 }
 
 // --- kafka ---
 type KafkaConfig struct {
-	Base             *BaseTable
-	Address          string
-	SaslUsername     string
-	SaslPassword     string
-	SaslMechanisms   string
-	SecurityProtocol string
+	Address          ParamItem
+	SaslUsername     ParamItem
+	SaslPassword     ParamItem
+	SaslMechanisms   ParamItem
+	SecurityProtocol ParamItem
 }
 
 func (k *KafkaConfig) init(base *BaseTable) {
-	k.Base = base
-	k.initAddress()
-	k.initSaslUsername()
-	k.initSaslPassword()
-	k.initSaslMechanisms()
-	k.initSecurityProtocol()
-}
+	k.Address = ParamItem{
+		Key:          "kafka.brokerList",
+		DefaultValue: "",
+		Version:      "2.1.0",
+		Refreshable:  false,
+	}
+	k.Address.Init(base.mgr)
 
-func (k *KafkaConfig) initAddress() {
-	k.Address = k.Base.LoadWithDefault("kafka.brokerList", "")
-}
+	k.SaslUsername = ParamItem{
+		Key:          "kafka.saslUsername",
+		DefaultValue: "",
+		Version:      "2.1.0",
+		Refreshable:  false,
+	}
+	k.SaslUsername.Init(base.mgr)
 
-func (k *KafkaConfig) initSaslUsername() {
-	k.SaslUsername = k.Base.LoadWithDefault("kafka.saslUsername", "")
-}
+	k.SaslPassword = ParamItem{
+		Key:          "kafka.saslPassword",
+		DefaultValue: "",
+		Version:      "2.1.0",
+		Refreshable:  false,
+	}
+	k.SaslPassword.Init(base.mgr)
 
-func (k *KafkaConfig) initSaslPassword() {
-	k.SaslPassword = k.Base.LoadWithDefault("kafka.saslPassword", "")
-}
+	k.SaslMechanisms = ParamItem{
+		Key:          "kafka.saslMechanisms",
+		DefaultValue: "PLAIN",
+		Version:      "2.1.0",
+		Refreshable:  false,
+	}
+	k.SaslMechanisms.Init(base.mgr)
 
-func (k *KafkaConfig) initSaslMechanisms() {
-	k.SaslMechanisms = k.Base.LoadWithDefault("kafka.saslMechanisms", "PLAIN")
-}
-
-func (k *KafkaConfig) initSecurityProtocol() {
-	k.SecurityProtocol = k.Base.LoadWithDefault("kafka.securityProtocol", "SASL_SSL")
+	k.SecurityProtocol = ParamItem{
+		Key:          "kafka.securityProtocol",
+		DefaultValue: "SASL_SSL",
+		Version:      "2.1.0",
+		Refreshable:  false,
+	}
+	k.SecurityProtocol.Init(base.mgr)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // --- rocksmq ---
 type RocksmqConfig struct {
-	Base *BaseTable
-
-	Path string
+	Path ParamItem
 }
 
-func (p *RocksmqConfig) init(base *BaseTable) {
-	p.Base = base
-
-	p.initPath()
-}
-
-func (p *RocksmqConfig) initPath() {
-	p.Path = p.Base.LoadWithDefault("rocksmq.path", "")
+func (r *RocksmqConfig) init(base *BaseTable) {
+	r.Path = ParamItem{
+		Key:          "rocksmq.path",
+		DefaultValue: "",
+		Version:      "2.0.0",
+		Refreshable:  false,
+	}
+	r.Path.Init(base.mgr)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // --- minio ---
 type MinioConfig struct {
-	Base *BaseTable
-
-	Address         string
-	AccessKeyID     string
-	SecretAccessKey string
-	UseSSL          bool
-	BucketName      string
-	RootPath        string
-	UseIAM          bool
-	IAMEndpoint     string
+	Address         ParamItem
+	Port            ParamItem
+	AccessKeyID     ParamItem
+	SecretAccessKey ParamItem
+	UseSSL          ParamItem
+	BucketName      ParamItem
+	RootPath        ParamItem
+	UseIAM          ParamItem
+	IAMEndpoint     ParamItem
 }
 
 func (p *MinioConfig) init(base *BaseTable) {
-	p.Base = base
-
-	p.initAddress()
-	p.initAccessKeyID()
-	p.initSecretAccessKey()
-	p.initUseSSL()
-	p.initBucketName()
-	p.initRootPath()
-	p.initUseIAM()
-	p.initIAMEndpoint()
-}
-
-func (p *MinioConfig) initAddress() {
-	host, err := p.Base.Load("minio.Address")
-	if err != nil {
-		panic(err)
+	p.Port = ParamItem{
+		Key:          "minio.port",
+		DefaultValue: "9000",
+		Version:      "2.0.0",
+		Refreshable:  false,
 	}
-	// for compatible
-	if strings.Contains(host, ":") {
-		p.Address = host
-	} else {
-		port := p.Base.LoadWithDefault("minio.port", "9000")
-		p.Address = host + ":" + port
+	p.Port.Init(base.mgr)
+
+	p.Address = ParamItem{
+		Key:          "minio.address",
+		DefaultValue: "",
+		Version:      "2.0.0",
+		GetFunc: func(addr string) string {
+			if addr == "" {
+				return ""
+			}
+			if strings.Contains(addr, ":") {
+				return addr
+			}
+			port, _ := p.Port.GetValue()
+			return addr + ":" + port
+		},
+		Refreshable: false,
 	}
-}
+	p.Address.Init(base.mgr)
 
-func (p *MinioConfig) initAccessKeyID() {
-	keyID, err := p.Base.Load("minio.accessKeyID")
-	if err != nil {
-		panic(err)
+	p.AccessKeyID = ParamItem{
+		Key:          "minio.accessKeyID",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	p.AccessKeyID = keyID
-}
+	p.AccessKeyID.Init(base.mgr)
 
-func (p *MinioConfig) initSecretAccessKey() {
-	key, err := p.Base.Load("minio.secretAccessKey")
-	if err != nil {
-		panic(err)
+	p.SecretAccessKey = ParamItem{
+		Key:          "minio.secretAccessKey",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	p.SecretAccessKey = key
-}
+	p.SecretAccessKey.Init(base.mgr)
 
-func (p *MinioConfig) initUseSSL() {
-	usessl, err := p.Base.Load("minio.useSSL")
-	if err != nil {
-		panic(err)
+	p.UseSSL = ParamItem{
+		Key:          "minio.useSSL",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	p.UseSSL, _ = strconv.ParseBool(usessl)
-}
+	p.UseSSL.Init(base.mgr)
 
-func (p *MinioConfig) initBucketName() {
-	bucketName, err := p.Base.Load("minio.bucketName")
-	if err != nil {
-		panic(err)
+	p.BucketName = ParamItem{
+		Key:          "minio.bucketName",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	p.BucketName = bucketName
-}
+	p.BucketName.Init(base.mgr)
 
-func (p *MinioConfig) initRootPath() {
-	rootPath, err := p.Base.Load("minio.rootPath")
-	if err != nil {
-		panic(err)
+	p.RootPath = ParamItem{
+		Key:          "minio.rootPath",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	p.RootPath = rootPath
-}
+	p.RootPath.Init(base.mgr)
 
-func (p *MinioConfig) initUseIAM() {
-	useIAM := p.Base.LoadWithDefault("minio.useIAM", DefaultMinioUseIAM)
-	p.UseIAM, _ = strconv.ParseBool(useIAM)
-}
+	p.UseIAM = ParamItem{
+		Key:          "minio.useIAM",
+		DefaultValue: DefaultMinioUseIAM,
+		Version:      "2.0.0",
+		Refreshable:  false,
+	}
+	p.UseIAM.Init(base.mgr)
 
-func (p *MinioConfig) initIAMEndpoint() {
-	iamEndpoint := p.Base.LoadWithDefault("minio.iamEndpoint", DefaultMinioIAMEndpoint)
-	p.IAMEndpoint = iamEndpoint
+	p.IAMEndpoint = ParamItem{
+		Key:          "minio.iamEndpoint",
+		DefaultValue: DefaultMinioIAMEndpoint,
+		Version:      "2.0.0",
+		Refreshable:  false,
+	}
+	p.IAMEndpoint.Init(base.mgr)
 }

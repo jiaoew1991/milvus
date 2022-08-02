@@ -463,7 +463,7 @@ func TestProxy(t *testing.T) {
 	}
 
 	qn := runQueryNode(ctx, localMsg, alias)
-	log.Info("running query node ...")
+	log.Info("running QueryNode ...")
 
 	if qn != nil {
 		defer func() {

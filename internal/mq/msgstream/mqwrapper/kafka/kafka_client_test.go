@@ -298,13 +298,23 @@ func TestKafkaClient_MsgSerializAndDeserialize(t *testing.T) {
 }
 
 func TestKafkaClient_NewKafkaClientInstanceWithConfig(t *testing.T) {
-	config1 := &paramtable.KafkaConfig{Address: "addr", SaslPassword: "password"}
+	config1 := &paramtable.KafkaConfig{
+		Address:      paramtable.ParamItem{GetFunc: func(originValue string) string { return "addr" }},
+		SaslPassword: paramtable.ParamItem{GetFunc: func(originValue string) string { return "password" }},
+	}
 	assert.Panics(t, func() { NewKafkaClientInstanceWithConfig(config1) })
 
-	config2 := &paramtable.KafkaConfig{Address: "addr", SaslUsername: "username"}
+	config2 := &paramtable.KafkaConfig{
+		Address:      paramtable.ParamItem{GetFunc: func(originValue string) string { return "addr" }},
+		SaslUsername: paramtable.ParamItem{GetFunc: func(originValue string) string { return "username" }},
+	}
 	assert.Panics(t, func() { NewKafkaClientInstanceWithConfig(config2) })
 
-	config3 := &paramtable.KafkaConfig{Address: "addr", SaslUsername: "username", SaslPassword: "password"}
+	config3 := &paramtable.KafkaConfig{
+		Address:      paramtable.ParamItem{GetFunc: func(originValue string) string { return "addr" }},
+		SaslUsername: paramtable.ParamItem{GetFunc: func(originValue string) string { return "username" }},
+		SaslPassword: paramtable.ParamItem{GetFunc: func(originValue string) string { return "password" }},
+	}
 	client := NewKafkaClientInstanceWithConfig(config3)
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.basicConfig)

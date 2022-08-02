@@ -32,6 +32,7 @@ const (
 
 type Manager struct {
 	sync.RWMutex
+	Dispatcher     *EventDispatcher
 	sources        map[string]Source
 	keySourceMap   map[string]string
 	overlayConfigs map[string]string // store the configs setted or deleted by user
@@ -39,6 +40,7 @@ type Manager struct {
 
 func NewManager() *Manager {
 	return &Manager{
+		Dispatcher:     NewEventDispatcher(),
 		sources:        make(map[string]Source),
 		keySourceMap:   make(map[string]string),
 		overlayConfigs: make(map[string]string),
@@ -83,8 +85,8 @@ func (m *Manager) GetConfigsByPattern(pattern string) map[string]string {
 	return matchedConfig
 }
 
-// Configs returns all the key values
-func (m *Manager) Configs() map[string]string {
+// GetConfigs returns all the key values
+func (m *Manager) GetConfigs() map[string]string {
 	m.RLock()
 	defer m.RLock()
 	config := make(map[string]string)
@@ -249,7 +251,11 @@ func (m *Manager) OnEvent(event *Event) {
 		return
 	}
 
-	// m.dispatcher.DispatchEvent(event)
+	m.Dispatcher.Dispatch(event)
+}
+
+func (m *Manager) GetName() string {
+	return "Manager"
 }
 
 func (m *Manager) findNextBestSource(key string, sourceName string) Source {

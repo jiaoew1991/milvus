@@ -215,6 +215,10 @@ func (gp *BaseTable) GetByPattern(pattern string) map[string]string {
 	return gp.mgr.GetConfigsByPattern(pattern)
 }
 
+func (gp *BaseTable) GetAll() map[string]string {
+	return gp.mgr.GetConfigs()
+}
+
 // For compatible reason, only visiable for Test
 func (gp *BaseTable) Remove(key string) error {
 	gp.mgr.DeleteConfig(key)

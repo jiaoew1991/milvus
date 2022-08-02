@@ -34,6 +34,7 @@ type Source interface {
 // EventHandler handles config change event
 type EventHandler interface {
 	OnEvent(event *Event)
+	GetName() string
 }
 
 // EtcdInfo has attribute for config center source initialization

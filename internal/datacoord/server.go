@@ -357,24 +357,24 @@ func (s *Server) initGarbageCollection() error {
 	var err error
 	if Params.CommonCfg.StorageType == "minio" {
 		chunkManagerFactory := storage.NewChunkManagerFactory("local", "minio",
-			storage.RootPath(Params.LocalStorageCfg.Path),
-			storage.Address(Params.MinioCfg.Address),
-			storage.AccessKeyID(Params.MinioCfg.AccessKeyID),
-			storage.SecretAccessKeyID(Params.MinioCfg.SecretAccessKey),
-			storage.UseSSL(Params.MinioCfg.UseSSL),
-			storage.BucketName(Params.MinioCfg.BucketName),
-			storage.UseIAM(Params.MinioCfg.UseIAM),
-			storage.IAMEndpoint(Params.MinioCfg.IAMEndpoint),
+			storage.RootPath(Params.LocalStorageCfg.Path.GetAsString()),
+			storage.Address(Params.MinioCfg.Address.GetAsString()),
+			storage.AccessKeyID(Params.MinioCfg.AccessKeyID.GetAsString()),
+			storage.SecretAccessKeyID(Params.MinioCfg.SecretAccessKey.GetAsString()),
+			storage.UseSSL(Params.MinioCfg.UseSSL.GetAsBool()),
+			storage.BucketName(Params.MinioCfg.BucketName.GetAsString()),
+			storage.UseIAM(Params.MinioCfg.UseIAM.GetAsBool()),
+			storage.IAMEndpoint(Params.MinioCfg.IAMEndpoint.GetAsString()),
 			storage.CreateBucket(true))
 		cli, err = chunkManagerFactory.NewVectorStorageChunkManager(s.ctx)
 		if err != nil {
 			log.Error("minio chunk manager init failed", zap.String("error", err.Error()))
 			return err
 		}
-		log.Info("minio chunk manager init success", zap.String("bucketname", Params.MinioCfg.BucketName))
+		log.Info("minio chunk manager init success", zap.String("bucketname", Params.MinioCfg.BucketName.GetAsString()))
 	} else if Params.CommonCfg.StorageType == "local" {
 		chunkManagerFactory := storage.NewChunkManagerFactory("local", "local",
-			storage.RootPath(Params.LocalStorageCfg.Path))
+			storage.RootPath(Params.LocalStorageCfg.Path.GetAsString()))
 		cli, err = chunkManagerFactory.NewVectorStorageChunkManager(s.ctx)
 		if err != nil {
 			log.Error("local chunk manager init failed", zap.String("error", err.Error()))
@@ -386,7 +386,7 @@ func (s *Server) initGarbageCollection() error {
 	s.garbageCollector = newGarbageCollector(s.meta, s.segReferManager, GcOption{
 		cli:      cli,
 		enabled:  Params.DataCoordCfg.EnableGarbageCollection,
-		rootPath: Params.MinioCfg.RootPath,
+		rootPath: Params.MinioCfg.RootPath.GetAsString(),
 
 		checkInterval:    Params.DataCoordCfg.GCInterval,
 		missingTolerance: Params.DataCoordCfg.GCMissingTolerance,
@@ -398,12 +398,12 @@ func (s *Server) initGarbageCollection() error {
 // here we use variable for test convenience
 var getCheckBucketFn = func(cli *minio.Client) func() error {
 	return func() error {
-		has, err := cli.BucketExists(context.TODO(), Params.MinioCfg.BucketName)
+		has, err := cli.BucketExists(context.TODO(), Params.MinioCfg.BucketName.GetAsString())
 		if err != nil {
 			return err
 		}
 		if !has {
-			err = cli.MakeBucket(context.TODO(), Params.MinioCfg.BucketName, minio.MakeBucketOptions{})
+			err = cli.MakeBucket(context.TODO(), Params.MinioCfg.BucketName.GetAsString(), minio.MakeBucketOptions{})
 			if err != nil {
 				return err
 			}

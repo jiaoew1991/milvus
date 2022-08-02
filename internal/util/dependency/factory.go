@@ -40,17 +40,17 @@ func (f *DefaultFactory) Init(params *paramtable.ComponentParam) {
 	// init storage
 	if params.CommonCfg.StorageType == "local" {
 		f.chunkManagerFactory = storage.NewChunkManagerFactory("local", "local",
-			storage.RootPath(params.LocalStorageCfg.Path))
+			storage.RootPath(params.LocalStorageCfg.Path.GetAsString()))
 	} else {
 		f.chunkManagerFactory = storage.NewChunkManagerFactory("local", "minio",
-			storage.RootPath(params.LocalStorageCfg.Path),
-			storage.Address(params.MinioCfg.Address),
-			storage.AccessKeyID(params.MinioCfg.AccessKeyID),
-			storage.SecretAccessKeyID(params.MinioCfg.SecretAccessKey),
-			storage.UseSSL(params.MinioCfg.UseSSL),
-			storage.BucketName(params.MinioCfg.BucketName),
-			storage.UseIAM(params.MinioCfg.UseIAM),
-			storage.IAMEndpoint(params.MinioCfg.IAMEndpoint),
+			storage.RootPath(params.LocalStorageCfg.Path.GetAsString()),
+			storage.Address(params.MinioCfg.Address.GetAsString()),
+			storage.AccessKeyID(params.MinioCfg.AccessKeyID.GetAsString()),
+			storage.SecretAccessKeyID(params.MinioCfg.SecretAccessKey.GetAsString()),
+			storage.UseSSL(params.MinioCfg.UseSSL.GetAsBool()),
+			storage.BucketName(params.MinioCfg.BucketName.GetAsString()),
+			storage.UseIAM(params.MinioCfg.UseIAM.GetAsBool()),
+			storage.IAMEndpoint(params.MinioCfg.IAMEndpoint.GetAsString()),
 			storage.CreateBucket(true))
 	}
 

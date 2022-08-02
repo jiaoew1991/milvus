@@ -232,7 +232,7 @@ func (c *mck) connectEctd() {
 }
 
 func (c *mck) connectMinio() {
-	useSSL := c.params.MinioCfg.UseSSL
+	useSSL := c.params.MinioCfg.UseSSL.GetAsBool()
 	if c.minioUseSSL == "true" || c.minioUseSSL == "false" {
 		minioUseSSL, err := strconv.ParseBool(c.minioUseSSL)
 		if err != nil {
@@ -241,12 +241,12 @@ func (c *mck) connectMinio() {
 		useSSL = minioUseSSL
 	}
 	chunkManagerFactory := storage.NewChunkManagerFactory("local", "minio",
-		storage.RootPath(c.params.LocalStorageCfg.Path),
-		storage.Address(getConfigValue(c.minioAddress, c.params.MinioCfg.Address, "minio_address")),
-		storage.AccessKeyID(getConfigValue(c.minioUsername, c.params.MinioCfg.AccessKeyID, "minio_username")),
-		storage.SecretAccessKeyID(getConfigValue(c.minioPassword, c.params.MinioCfg.SecretAccessKey, "minio_password")),
+		storage.RootPath(c.params.LocalStorageCfg.Path.GetAsString()),
+		storage.Address(getConfigValue(c.minioAddress, c.params.MinioCfg.Address.GetAsString(), "minio_address")),
+		storage.AccessKeyID(getConfigValue(c.minioUsername, c.params.MinioCfg.AccessKeyID.GetAsString(), "minio_username")),
+		storage.SecretAccessKeyID(getConfigValue(c.minioPassword, c.params.MinioCfg.SecretAccessKey.GetAsString(), "minio_password")),
 		storage.UseSSL(useSSL),
-		storage.BucketName(getConfigValue(c.minioBucketName, c.params.MinioCfg.BucketName, "minio_bucket_name")),
+		storage.BucketName(getConfigValue(c.minioBucketName, c.params.MinioCfg.BucketName.GetAsString(), "minio_bucket_name")),
 		storage.CreateBucket(true))
 
 	var err error

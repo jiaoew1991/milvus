@@ -588,11 +588,11 @@ func genLocalChunkManager() (storage.ChunkManager, error) {
 func genRemoteChunkManager(ctx context.Context) (storage.ChunkManager, error) {
 	return storage.NewMinioChunkManager(
 		ctx,
-		storage.Address(Params.MinioCfg.Address),
-		storage.AccessKeyID(Params.MinioCfg.AccessKeyID),
-		storage.SecretAccessKeyID(Params.MinioCfg.SecretAccessKey),
-		storage.UseSSL(Params.MinioCfg.UseSSL),
-		storage.BucketName(Params.MinioCfg.BucketName),
+		storage.Address(Params.MinioCfg.Address.GetAsString()),
+		storage.AccessKeyID(Params.MinioCfg.AccessKeyID.GetAsString()),
+		storage.SecretAccessKeyID(Params.MinioCfg.SecretAccessKey.GetAsString()),
+		storage.UseSSL(Params.MinioCfg.UseSSL.GetAsBool()),
+		storage.BucketName(Params.MinioCfg.BucketName.GetAsString()),
 		storage.CreateBucket(true))
 }
 
@@ -602,11 +602,11 @@ func genVectorChunkManager(ctx context.Context, col *Collection) (*storage.Vecto
 
 	rcm, err := storage.NewMinioChunkManager(
 		ctx,
-		storage.Address(Params.MinioCfg.Address),
-		storage.AccessKeyID(Params.MinioCfg.AccessKeyID),
-		storage.SecretAccessKeyID(Params.MinioCfg.SecretAccessKey),
-		storage.UseSSL(Params.MinioCfg.UseSSL),
-		storage.BucketName(Params.MinioCfg.BucketName),
+		storage.Address(Params.MinioCfg.Address.GetAsString()),
+		storage.AccessKeyID(Params.MinioCfg.AccessKeyID.GetAsString()),
+		storage.SecretAccessKeyID(Params.MinioCfg.SecretAccessKey.GetAsString()),
+		storage.UseSSL(Params.MinioCfg.UseSSL.GetAsBool()),
+		storage.BucketName(Params.MinioCfg.BucketName.GetAsString()),
 		storage.CreateBucket(true))
 
 	if err != nil {

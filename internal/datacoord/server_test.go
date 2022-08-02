@@ -3005,7 +3005,8 @@ func Test_initGarbageCollection(t *testing.T) {
 	Params.DataCoordCfg.EnableGarbageCollection = true
 
 	t.Run("err_minio_bad_address", func(t *testing.T) {
-		Params.MinioCfg.Address = "host:9000:bad"
+		os.Setenv("minio.address", "host:9000:bad")
+		Params.Init()
 		err := server.initGarbageCollection()
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "too many colons in address")
@@ -3019,13 +3020,15 @@ func Test_initGarbageCollection(t *testing.T) {
 	defer func() {
 		getCheckBucketFn = getCheckBucketFnBak
 	}()
-	Params.MinioCfg.Address = "minio:9000"
+	os.Setenv("minio.address", "minio:9000")
 	t.Run("ok", func(t *testing.T) {
+		Params.Init()
 		err := server.initGarbageCollection()
 		assert.NoError(t, err)
 	})
 	t.Run("iam_ok", func(t *testing.T) {
-		Params.MinioCfg.UseIAM = true
+		os.Setenv("minio.useIAM", "true")
+		Params.Init()
 		err := server.initGarbageCollection()
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "404 Not Found")

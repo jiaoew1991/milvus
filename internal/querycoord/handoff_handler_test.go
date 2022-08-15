@@ -43,7 +43,7 @@ func TestHandoffHandlerReloadFromKV(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	defer etcdCli.Close()
 	assert.Nil(t, err)
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	id := UniqueID(rand.Int31())
 	idAllocator := func() (UniqueID, error) {
 		newID := atomic.AddInt64(&id, 1)
@@ -142,7 +142,7 @@ func TestHandoff(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	defer etcdCli.Close()
 	assert.Nil(t, err)
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	id := UniqueID(rand.Int31())
 	idAllocator := func() (UniqueID, error) {
 		newID := atomic.AddInt64(&id, 1)

@@ -89,10 +89,10 @@ func BenchmarkAllocTimestamp(b *testing.B) {
 
 	randVal := rand.Int()
 
+	rootPath := fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 	Params.CommonCfg.RootCoordTimeTick = fmt.Sprintf("master-time-tick-%d", randVal)
 	Params.CommonCfg.RootCoordStatistics = fmt.Sprintf("master-statistics-%d", randVal)
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
 	Params.CommonCfg.RootCoordSubName = fmt.Sprintf("subname-%d", randVal)
 
 	err = core.SetDataCoord(ctx, &tbd{})

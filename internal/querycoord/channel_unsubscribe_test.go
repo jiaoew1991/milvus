@@ -36,7 +36,7 @@ func Test_HandlerReloadFromKV(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 
 	channelInfoKey := fmt.Sprintf("%s/%d", unsubscribeChannelInfoPrefix, defaultQueryNodeID)
 	unsubscribeChannelInfo := &querypb.UnsubscribeChannelInfo{
@@ -63,7 +63,7 @@ func Test_AddUnsubscribeChannelInfo(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	factory := dependency.NewDefaultFactory(true)
 	cleaner, err := NewChannelCleaner(baseCtx, kv, factory)
 	assert.Nil(t, err)
@@ -93,7 +93,7 @@ func Test_HandleChannelUnsubscribeLoop(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	factory := dependency.NewDefaultFactory(true)
 	handler, err := NewChannelCleaner(baseCtx, kv, factory)
 	assert.Nil(t, err)

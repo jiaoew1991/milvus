@@ -62,6 +62,7 @@ func (inm *Mock) Init() error {
 	if inm.Err {
 		return errors.New("IndexNode init failed")
 	}
+	Params.Init()
 	inm.ctx, inm.cancel = context.WithCancel(context.Background())
 	inm.buildIndex = make(chan *indexpb.CreateIndexRequest, 10)
 	return nil
@@ -173,11 +174,11 @@ func (inm *Mock) Register() error {
 	if inm.Err {
 		return errors.New("IndexNode register failed")
 	}
-	inm.etcdKV = etcdkv.NewEtcdKV(inm.etcdCli, Params.EtcdCfg.MetaRootPath)
+	inm.etcdKV = etcdkv.NewEtcdKV(inm.etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	if err := inm.etcdKV.RemoveWithPrefix("session/" + typeutil.IndexNodeRole); err != nil {
 		return err
 	}
-	session := sessionutil.NewSession(context.Background(), Params.EtcdCfg.MetaRootPath, inm.etcdCli)
+	session := sessionutil.NewSession(context.Background(), Params.EtcdCfg.MetaRootPath.GetValue(), inm.etcdCli)
 	session.Init(typeutil.IndexNodeRole, "localhost:21121", false, false)
 	session.Register()
 	return nil

@@ -13,6 +13,7 @@ package paramtable
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/milvus-io/milvus/internal/config"
@@ -43,19 +44,17 @@ func (pi *ParamItem) Init(manager *config.Manager) {
 		pi.updateValue("", true)
 	}
 	if pi.Refreshable {
-		handler := Refresher{
-			name: "Refresher",
-			item: pi,
-		}
-		manager.Dispatcher.Register(pi.Key, handler)
+		manager.Dispatcher.Register(pi.Key, pi)
 	}
 }
 
+// Get original value with error
 func (pi *ParamItem) GetValue() (string, error) {
 	pi.valueGuard.RLock()
 	defer pi.valueGuard.RUnlock()
 	var ret string
 	var err error
+	// if item marked as deleted then return DefaultValue
 	if pi.deleted {
 		ret = pi.DefaultValue
 		err = errors.New("Param not found " + pi.Key)
@@ -74,12 +73,27 @@ func (pi *ParamItem) GetAsString() string {
 	return v
 }
 
+func (pi *ParamItem) GetAsStrings() []string {
+	return getAndConvert(pi, func(value string) ([]string, error) {
+		return strings.Split(value, ","), nil
+	}, []string{})
+}
+
 func (pi *ParamItem) GetAsBool() bool {
 	return getAndConvert(pi, strconv.ParseBool, false)
 }
 
 func (pi *ParamItem) GetAsInt() int {
 	return getAndConvert(pi, strconv.Atoi, 0)
+}
+
+func (pi *ParamItem) OnEvent(e *config.Event) {
+	switch e.EventType {
+	case config.CreateType, config.UpdateType:
+		pi.updateValue(e.Value, false)
+	case config.DeleteType:
+		pi.updateValue("", true)
+	}
 }
 
 func (pi *ParamItem) updateValue(value string, deleted bool) {
@@ -89,22 +103,21 @@ func (pi *ParamItem) updateValue(value string, deleted bool) {
 	pi.deleted = deleted
 }
 
-type Refresher struct {
-	name string
-	item *ParamItem
+func (r *ParamItem) GetName() string {
+	return "Default"
 }
 
-func (r Refresher) OnEvent(e *config.Event) {
-	switch e.EventType {
-	case config.CreateType, config.UpdateType:
-		r.item.updateValue(e.Value, false)
-	case config.DeleteType:
-		r.item.updateValue("", true)
+type CompositeParamItem struct {
+	Items  []*ParamItem
+	Format func(map[string]string) string
+}
+
+func (cpi *CompositeParamItem) GetValue() string {
+	kvs := make(map[string]string, len(cpi.Items))
+	for _, v := range cpi.Items {
+		kvs[v.Key] = v.GetAsString()
 	}
-}
-
-func (r Refresher) GetName() string {
-	return r.name
+	return cpi.Format(kvs)
 }
 
 func getAndConvert[T any](pi *ParamItem, converter func(input string) (T, error), defaultValue T) T {

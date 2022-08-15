@@ -197,7 +197,7 @@ func TestUnMarshalTask(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	baseCtx, cancel := context.WithCancel(context.Background())
 	dataCoord := &dataCoordMock{}
 	broker, err := newGlobalMetaBroker(baseCtx, nil, dataCoord, nil, nil)
@@ -417,7 +417,7 @@ func TestReloadTaskFromKV(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	assert.Nil(t, err)
 	baseCtx, cancel := context.WithCancel(context.Background())
 	taskScheduler := &TaskScheduler{

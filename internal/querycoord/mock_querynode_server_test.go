@@ -110,12 +110,12 @@ func (qs *queryNodeServerMock) setRPCInterface(interfacePointer *rpcHandler, new
 }
 
 func (qs *queryNodeServerMock) Register() error {
-	log.Debug("query node session info", zap.String("metaPath", Params.EtcdCfg.MetaRootPath))
+	log.Debug("query node session info", zap.String("metaPath", Params.EtcdCfg.MetaRootPath.GetValue()))
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	if err != nil {
 		return err
 	}
-	qs.session = sessionutil.NewSession(qs.ctx, Params.EtcdCfg.MetaRootPath, etcdCli)
+	qs.session = sessionutil.NewSession(qs.ctx, Params.EtcdCfg.MetaRootPath.GetValue(), etcdCli)
 	qs.session.Init(typeutil.QueryNodeRole, qs.queryNodeIP+":"+strconv.FormatInt(qs.queryNodePort, 10), false, false)
 	qs.queryNodeID = qs.session.ServerID
 	log.Debug("query nodeID", zap.Int64("nodeID", qs.queryNodeID))

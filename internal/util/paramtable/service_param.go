@@ -72,125 +72,164 @@ func (p *ServiceParam) Init() {
 ///////////////////////////////////////////////////////////////////////////////
 // --- etcd ---
 type EtcdConfig struct {
-	Base *BaseTable
-
 	// --- ETCD ---
-	Endpoints         []string
-	MetaRootPath      string
-	KvRootPath        string
-	EtcdLogLevel      string
-	EtcdLogPath       string
-	EtcdUseSSL        bool
-	EtcdTLSCert       string
-	EtcdTLSKey        string
-	EtcdTLSCACert     string
-	EtcdTLSMinVersion string
+	Endpoints         ParamItem
+	RootPath          ParamItem
+	MetaSubPath       ParamItem
+	KvSubPath         ParamItem
+	MetaRootPath      CompositeParamItem
+	KvRootPath        CompositeParamItem
+	EtcdLogLevel      ParamItem
+	EtcdLogPath       ParamItem
+	EtcdUseSSL        ParamItem
+	EtcdTLSCert       ParamItem
+	EtcdTLSKey        ParamItem
+	EtcdTLSCACert     ParamItem
+	EtcdTLSMinVersion ParamItem
 
 	// --- Embed ETCD ---
-	UseEmbedEtcd bool
-	ConfigPath   string
-	DataDir      string
+	UseEmbedEtcd ParamItem
+	ConfigPath   ParamItem
+	DataDir      ParamItem
 }
 
 func (p *EtcdConfig) init(base *BaseTable) {
-	p.Base = base
-	p.LoadCfgToMemory()
-}
-
-func (p *EtcdConfig) LoadCfgToMemory() {
-	p.initUseEmbedEtcd()
-	if p.UseEmbedEtcd {
-		p.initConfigPath()
-		p.initDataDir()
-	} else {
-		p.initEndpoints()
+	p.Endpoints = ParamItem{
+		Key:          "etcd.endpoints",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	p.initMetaRootPath()
-	p.initKvRootPath()
-	p.initEtcdLogLevel()
-	p.initEtcdLogPath()
-	p.initEtcdUseSSL()
-	p.initEtcdTLSCert()
-	p.initEtcdTLSKey()
-	p.initEtcdTLSCACert()
-	p.initEtcdTLSMinVersion()
-}
+	p.Endpoints.Init(base.mgr)
 
-func (p *EtcdConfig) initUseEmbedEtcd() {
-	p.UseEmbedEtcd = p.Base.ParseBool("etcd.use.embed", false)
-	if p.UseEmbedEtcd && (os.Getenv(metricsinfo.DeployModeEnvKey) != metricsinfo.StandaloneDeployMode) {
+	p.UseEmbedEtcd = ParamItem{
+		Key:          "etcd.use.embed",
+		DefaultValue: "false",
+		Version:      "2.1.0",
+		Refreshable:  false,
+	}
+	p.UseEmbedEtcd.Init(base.mgr)
+
+	if p.UseEmbedEtcd.GetAsBool() && (os.Getenv(metricsinfo.DeployModeEnvKey) != metricsinfo.StandaloneDeployMode) {
 		panic("embedded etcd can not be used under distributed mode")
 	}
-}
 
-func (p *EtcdConfig) initConfigPath() {
-	addr := p.Base.LoadWithDefault("etcd.config.path", "")
-	p.ConfigPath = addr
-}
+	if p.UseEmbedEtcd.GetAsBool() {
+		p.ConfigPath = ParamItem{
+			Key:          "etcd.config.path",
+			DefaultValue: "",
+			Version:      "2.1.0",
+			Refreshable:  false,
+		}
+		p.ConfigPath.Init(base.mgr)
 
-func (p *EtcdConfig) initDataDir() {
-	addr := p.Base.LoadWithDefault("etcd.data.dir", "default.etcd")
-	p.DataDir = addr
-}
-
-func (p *EtcdConfig) initEndpoints() {
-	endpoints, err := p.Base.Load("etcd.endpoints")
-	if err != nil {
-		panic(err)
+		p.DataDir = ParamItem{
+			Key:          "etcd.data.dir",
+			DefaultValue: "default.etcd",
+			Version:      "2.1.0",
+			Refreshable:  false,
+		}
+		p.DataDir.Init(base.mgr)
+	} else {
+		p.Endpoints = ParamItem{
+			Key:          "etcd.endpoints",
+			Version:      "2.0.0",
+			Refreshable:  false,
+			PanicIfEmpty: true,
+		}
+		p.Endpoints.Init(base.mgr)
 	}
-	p.Endpoints = strings.Split(endpoints, ",")
-}
 
-func (p *EtcdConfig) initMetaRootPath() {
-	rootPath, err := p.Base.Load("etcd.rootPath")
-	if err != nil {
-		panic(err)
+	p.RootPath = ParamItem{
+		Key:          "etcd.rootPath",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	subPath, err := p.Base.Load("etcd.metaSubPath")
-	if err != nil {
-		panic(err)
+	p.RootPath.Init(base.mgr)
+
+	p.MetaSubPath = ParamItem{
+		Key:          "etcd.metaSubPath",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	p.MetaRootPath = path.Join(rootPath, subPath)
-}
+	p.MetaSubPath.Init(base.mgr)
 
-func (p *EtcdConfig) initKvRootPath() {
-	rootPath, err := p.Base.Load("etcd.rootPath")
-	if err != nil {
-		panic(err)
+	p.MetaRootPath = CompositeParamItem{
+		Items: []*ParamItem{&p.RootPath, &p.MetaSubPath},
+		Format: func(kvs map[string]string) string {
+			return path.Join(kvs["etcd.rootPath"], kvs["etcd.metaSubPath"])
+		},
 	}
-	subPath, err := p.Base.Load("etcd.kvSubPath")
-	if err != nil {
-		panic(err)
+
+	p.KvSubPath = ParamItem{
+		Key:          "etcd.kvSubPath",
+		Version:      "2.0.0",
+		Refreshable:  false,
+		PanicIfEmpty: true,
 	}
-	p.KvRootPath = path.Join(rootPath, subPath)
-}
+	p.KvSubPath.Init(base.mgr)
 
-func (p *EtcdConfig) initEtcdLogLevel() {
-	p.EtcdLogLevel = p.Base.LoadWithDefault("etcd.log.level", defaultEtcdLogLevel)
-}
+	p.KvRootPath = CompositeParamItem{
+		Items: []*ParamItem{&p.RootPath, &p.KvSubPath},
+		Format: func(kvs map[string]string) string {
+			return path.Join(kvs["etcd.rootPath"], kvs["etcd.kvSubPath"])
+		},
+	}
 
-func (p *EtcdConfig) initEtcdLogPath() {
-	p.EtcdLogPath = p.Base.LoadWithDefault("etcd.log.path", defaultEtcdLogPath)
-}
+	p.EtcdLogLevel = ParamItem{
+		Key:          "etcd.log.level",
+		DefaultValue: defaultEtcdLogLevel,
+		Version:      "2.0.0",
+		Refreshable:  true,
+	}
+	p.EtcdLogLevel.Init(base.mgr)
 
-func (p *EtcdConfig) initEtcdUseSSL() {
-	p.EtcdUseSSL = p.Base.ParseBool("etcd.ssl.enabled", false)
-}
+	p.EtcdLogPath = ParamItem{
+		Key:          "etcd.log.path",
+		DefaultValue: defaultEtcdLogPath,
+		Version:      "2.0.0",
+		Refreshable:  true,
+	}
+	p.EtcdLogPath.Init(base.mgr)
 
-func (p *EtcdConfig) initEtcdTLSCert() {
-	p.EtcdTLSCert = p.Base.LoadWithDefault("etcd.ssl.tlsCert", "")
-}
+	p.EtcdUseSSL = ParamItem{
+		Key:          "etcd.ssl.enabled",
+		DefaultValue: "false",
+		Version:      "2.0.0",
+		Refreshable:  false,
+	}
+	p.EtcdUseSSL.Init(base.mgr)
 
-func (p *EtcdConfig) initEtcdTLSKey() {
-	p.EtcdTLSKey = p.Base.LoadWithDefault("etcd.ssl.tlsKey", "")
-}
+	p.EtcdTLSCert = ParamItem{
+		Key:         "etcd.ssl.tlsCert",
+		Version:     "2.0.0",
+		Refreshable: false,
+	}
+	p.EtcdTLSCert.Init(base.mgr)
 
-func (p *EtcdConfig) initEtcdTLSCACert() {
-	p.EtcdTLSCACert = p.Base.LoadWithDefault("etcd.ssl.tlsCACert", "")
-}
+	p.EtcdTLSKey = ParamItem{
+		Key:         "etcd.ssl.tlsKey",
+		Version:     "2.0.0",
+		Refreshable: false,
+	}
+	p.EtcdTLSKey.Init(base.mgr)
 
-func (p *EtcdConfig) initEtcdTLSMinVersion() {
-	p.EtcdTLSMinVersion = p.Base.LoadWithDefault("etcd.ssl.tlsMinVersion", "1.3")
+	p.EtcdTLSCACert = ParamItem{
+		Key:         "etcd.ssl.tlsCACert",
+		Version:     "2.0.0",
+		Refreshable: false,
+	}
+	p.EtcdTLSCACert.Init(base.mgr)
+
+	p.EtcdTLSMinVersion = ParamItem{
+		Key:          "etcd.ssl.tlsMinVersion",
+		DefaultValue: "1.3",
+		Version:      "2.0.0",
+		Refreshable:  false,
+	}
+	p.EtcdTLSMinVersion.Init(base.mgr)
 }
 
 type LocalStorageConfig struct {

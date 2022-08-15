@@ -57,7 +57,7 @@ func refreshParams() {
 	rand.Seed(time.Now().UnixNano())
 	suffix := "-test-query-Coord" + strconv.FormatInt(rand.Int63(), 10)
 	Params.CommonCfg.QueryCoordTimeTick = Params.CommonCfg.QueryCoordTimeTick + suffix
-	Params.EtcdCfg.MetaRootPath = Params.EtcdCfg.MetaRootPath + suffix
+	Params.BaseTable.Save("etcd.metaSubPath", "meta"+suffix)
 	GlobalSegmentInfos = make(map[UniqueID]*querypb.SegmentInfo)
 	Params.QueryCoordCfg.RetryInterval = int64(1 * time.Millisecond)
 }
@@ -163,7 +163,7 @@ func TestWatchNodeLoop(t *testing.T) {
 	t.Run("Test OfflineNodes", func(t *testing.T) {
 		refreshParams()
 
-		kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+		kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 
 		kvs := make(map[string]string)
 		session := &sessionutil.Session{
@@ -633,7 +633,7 @@ func TestQueryCoord_watchHandoffSegmentLoop(t *testing.T) {
 
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
-	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 
 	qc := &QueryCoord{
 		loopCtx:  ctx,
@@ -661,7 +661,7 @@ func TestQueryCoord_watchHandoffSegmentLoop(t *testing.T) {
 	t.Run("etcd compaction", func(t *testing.T) {
 		etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 		assert.Nil(t, err)
-		etcdKV = etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+		etcdKV = etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 		qc.kvClient = etcdKV
 		qc.handoffHandler.client = etcdKV
 		qc.handoffHandler.revision = 0
@@ -700,7 +700,7 @@ func TestQueryCoord_watchHandoffSegmentLoop(t *testing.T) {
 		defer cancel()
 		etcdCli, err = etcd.GetEtcdClient(&Params.EtcdCfg)
 		assert.Nil(t, err)
-		etcdKV = etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+		etcdKV = etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 		qc.loopCtx = ctx
 		qc.loopCancel = cancel
 		qc.kvClient = etcdKV

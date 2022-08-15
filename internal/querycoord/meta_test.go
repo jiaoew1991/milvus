@@ -74,7 +74,7 @@ func TestReplica_Release(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	id := UniqueID(rand.Int31())
 	idAllocator := func() (UniqueID, error) {
 		newID := atomic.AddInt64(&id, 1)
@@ -111,7 +111,7 @@ func TestMetaFunc(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 
 	nodeID := defaultQueryNodeID
 	segmentsInfo := newSegmentsInfo(kv)
@@ -295,7 +295,7 @@ func TestReloadMetaFromKV(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	id := UniqueID(rand.Int31())
 	idAllocator := func() (UniqueID, error) {
 		newID := atomic.AddInt64(&id, 1)
@@ -376,7 +376,7 @@ func TestVChannelInfoReadFromKVCompatible(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	id := UniqueID(rand.Int31())
 	idAllocator := func() (UniqueID, error) {
 		newID := atomic.AddInt64(&id, 1)
@@ -467,7 +467,7 @@ func TestSaveSegments(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
-	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	kv := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 
 	meta := &MetaReplica{
 		collectionInfos: map[UniqueID]*querypb.CollectionInfo{},

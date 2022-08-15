@@ -24,39 +24,39 @@ func TestServiceParam(t *testing.T) {
 	SParams.Init()
 
 	t.Run("test etcdConfig", func(t *testing.T) {
-		Params := SParams.EtcdCfg
+		Params := &SParams.EtcdCfg
 
-		assert.NotZero(t, len(Params.Endpoints))
-		t.Logf("etcd endpoints = %s", Params.Endpoints)
+		assert.NotZero(t, len(Params.Endpoints.GetAsStrings()))
+		t.Logf("etcd endpoints = %s", Params.Endpoints.GetAsStrings())
 
 		assert.NotEqual(t, Params.MetaRootPath, "")
-		t.Logf("meta root path = %s", Params.MetaRootPath)
+		t.Logf("meta root path = %s", Params.MetaRootPath.GetValue())
 
 		assert.NotEqual(t, Params.KvRootPath, "")
-		t.Logf("kv root path = %s", Params.KvRootPath)
+		t.Logf("kv root path = %s", Params.KvRootPath.GetValue())
 
-		assert.NotNil(t, Params.EtcdUseSSL)
-		t.Logf("use ssl = %t", Params.EtcdUseSSL)
+		assert.NotNil(t, Params.EtcdUseSSL.GetAsBool())
+		t.Logf("use ssl = %t", Params.EtcdUseSSL.GetAsBool())
 
-		assert.NotEmpty(t, Params.EtcdTLSKey)
-		t.Logf("tls key = %s", Params.EtcdTLSKey)
+		assert.NotEmpty(t, Params.EtcdTLSKey.GetAsString())
+		t.Logf("tls key = %s", Params.EtcdTLSKey.GetAsString())
 
-		assert.NotEmpty(t, Params.EtcdTLSCACert)
-		t.Logf("tls CACert = %s", Params.EtcdTLSCACert)
+		assert.NotEmpty(t, Params.EtcdTLSCACert.GetAsString())
+		t.Logf("tls CACert = %s", Params.EtcdTLSCACert.GetAsString())
 
-		assert.NotEmpty(t, Params.EtcdTLSCert)
-		t.Logf("tls cert = %s", Params.EtcdTLSCert)
+		assert.NotEmpty(t, Params.EtcdTLSCert.GetAsString())
+		t.Logf("tls cert = %s", Params.EtcdTLSCert.GetAsString())
 
-		assert.NotEmpty(t, Params.EtcdTLSMinVersion)
-		t.Logf("tls minVersion = %s", Params.EtcdTLSMinVersion)
+		assert.NotEmpty(t, Params.EtcdTLSMinVersion.GetAsString())
+		t.Logf("tls minVersion = %s", Params.EtcdTLSMinVersion.GetAsString())
 
 		// test UseEmbedEtcd
-		Params.Base.Save("etcd.use.embed", "true")
+		SParams.BaseTable.Save("etcd.use.embed", "true")
 		assert.Nil(t, os.Setenv(metricsinfo.DeployModeEnvKey, metricsinfo.ClusterDeployMode))
-		assert.Panics(t, func() { Params.initUseEmbedEtcd() })
+		assert.Panics(t, func() { Params.init(&SParams.BaseTable) })
 
 		assert.Nil(t, os.Setenv(metricsinfo.DeployModeEnvKey, metricsinfo.StandaloneDeployMode))
-		Params.LoadCfgToMemory()
+		Params.init(&SParams.BaseTable)
 	})
 
 	t.Run("test pulsarConfig", func(t *testing.T) {

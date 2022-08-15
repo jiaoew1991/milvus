@@ -140,7 +140,7 @@ func (node *Proxy) Register() error {
 
 // initSession initialize the session of Proxy.
 func (node *Proxy) initSession() error {
-	node.session = sessionutil.NewSession(node.ctx, Params.EtcdCfg.MetaRootPath, node.etcdCli)
+	node.session = sessionutil.NewSession(node.ctx, Params.EtcdCfg.MetaRootPath.GetValue(), node.etcdCli)
 	if node.session == nil {
 		return errors.New("new session failed, maybe etcd cannot be connected")
 	}

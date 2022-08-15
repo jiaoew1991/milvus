@@ -50,7 +50,8 @@ type queryCoordMock struct {
 func setup() {
 	os.Setenv("QUERY_NODE_ID", "1")
 	Params.Init()
-	Params.EtcdCfg.MetaRootPath = "/etcd/test/root/querynode"
+	Params.BaseTable.Save("etcd.rootPath", "/etcd/test/root")
+	Params.BaseTable.Save("etcd.metaSubPath", "querynode")
 }
 
 func initTestMeta(t *testing.T, node *QueryNode, collectionID UniqueID, segmentID UniqueID, optional ...bool) {
@@ -89,7 +90,7 @@ func newQueryNodeMock() *QueryNode {
 	if err != nil {
 		panic(err)
 	}
-	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 
 	factory := newMessageStreamFactory()
 	svr := NewQueryNode(ctx, factory)

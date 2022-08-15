@@ -799,7 +799,7 @@ func TestServer_watchQueryCoord(t *testing.T) {
 	Params.Init()
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
-	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	assert.NotNil(t, etcdKV)
 	factory := dependency.NewDefaultFactory(true)
 	svr := CreateServer(context.TODO(), factory)
@@ -862,7 +862,7 @@ func TestServer_watchRootCoord(t *testing.T) {
 	Params.Init()
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
-	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	assert.NotNil(t, etcdKV)
 	factory := dependency.NewDefaultFactory(true)
 	svr := CreateServer(context.TODO(), factory)
@@ -2877,7 +2877,7 @@ func newTestServer(t *testing.T, receiveCh chan interface{}, opts ...Option) *Se
 
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
-	sessKey := path.Join(Params.EtcdCfg.MetaRootPath, sessionutil.DefaultServiceRoot)
+	sessKey := path.Join(Params.EtcdCfg.MetaRootPath.GetValue(), sessionutil.DefaultServiceRoot)
 	_, err = etcdCli.Delete(context.Background(), sessKey, clientv3.WithPrefix())
 	assert.Nil(t, err)
 
@@ -2920,15 +2920,15 @@ func newTestServer2(t *testing.T, receiveCh chan interface{}, opts ...Option) *S
 
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
-	sessKey := path.Join(Params.EtcdCfg.MetaRootPath, sessionutil.DefaultServiceRoot)
+	sessKey := path.Join(Params.EtcdCfg.MetaRootPath.GetValue(), sessionutil.DefaultServiceRoot)
 	_, err = etcdCli.Delete(context.Background(), sessKey, clientv3.WithPrefix())
 	assert.Nil(t, err)
 
-	icSession := sessionutil.NewSession(context.Background(), Params.EtcdCfg.MetaRootPath, etcdCli)
+	icSession := sessionutil.NewSession(context.Background(), Params.EtcdCfg.MetaRootPath.GetValue(), etcdCli)
 	icSession.Init(typeutil.IndexCoordRole, "localhost:31000", true, true)
 	icSession.Register()
 
-	qcSession := sessionutil.NewSession(context.Background(), Params.EtcdCfg.MetaRootPath, etcdCli)
+	qcSession := sessionutil.NewSession(context.Background(), Params.EtcdCfg.MetaRootPath.GetValue(), etcdCli)
 	qcSession.Init(typeutil.QueryCoordRole, "localhost:19532", true, true)
 	qcSession.Register()
 
@@ -2976,7 +2976,7 @@ func Test_initServiceDiscovery(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	qcSession := sessionutil.NewSession(context.Background(), Params.EtcdCfg.MetaRootPath, server.etcdCli)
+	qcSession := sessionutil.NewSession(context.Background(), Params.EtcdCfg.MetaRootPath.GetValue(), server.etcdCli)
 	qcSession.Init(typeutil.QueryCoordRole, "localhost:19532", true, true)
 	qcSession.Register()
 	req := &datapb.AcquireSegmentLockRequest{
@@ -2987,7 +2987,7 @@ func Test_initServiceDiscovery(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, commonpb.ErrorCode_Success, resp.GetErrorCode())
 
-	sessKey := path.Join(Params.EtcdCfg.MetaRootPath, sessionutil.DefaultServiceRoot, typeutil.QueryCoordRole)
+	sessKey := path.Join(Params.EtcdCfg.MetaRootPath.GetValue(), sessionutil.DefaultServiceRoot, typeutil.QueryCoordRole)
 	_, err = server.etcdCli.Delete(context.Background(), sessKey, clientv3.WithPrefix())
 	assert.Nil(t, err)
 

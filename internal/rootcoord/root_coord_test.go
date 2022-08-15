@@ -649,8 +649,8 @@ func TestRootCoordInit(t *testing.T) {
 	core.SetEtcdClient(etcdCli)
 	randVal := rand.Int()
 
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+	rootPath := fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 
 	err = core.Init()
 	assert.NoError(t, err)
@@ -665,8 +665,8 @@ func TestRootCoordInit(t *testing.T) {
 	assert.NoError(t, err)
 	randVal = rand.Int()
 
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+	rootPath = fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 
 	core.kvBaseCreate = func(string) (kv.TxnKV, error) {
 		return nil, retry.Unrecoverable(errors.New("injected"))
@@ -688,11 +688,11 @@ func TestRootCoordInit(t *testing.T) {
 	assert.NoError(t, err)
 	randVal = rand.Int()
 
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+	rootPath = fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 
 	core.kvBaseCreate = func(root string) (kv.TxnKV, error) {
-		if root == Params.EtcdCfg.MetaRootPath {
+		if root == Params.EtcdCfg.MetaRootPath.GetValue() {
 			return nil, retry.Unrecoverable(errors.New("injected"))
 		}
 		return memkv.NewMemoryKV(), nil
@@ -714,8 +714,8 @@ func TestRootCoordInit(t *testing.T) {
 	assert.NoError(t, err)
 	randVal = rand.Int()
 
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+	rootPath = fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 
 	core.kvBaseCreate = func(string) (kv.TxnKV, error) {
 		return nil, nil
@@ -737,8 +737,8 @@ func TestRootCoordInit(t *testing.T) {
 	assert.NoError(t, err)
 	randVal = rand.Int()
 
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+	rootPath = fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 
 	core.kvBaseCreate = func(string) (kv.TxnKV, error) {
 		kv := memkv.NewMemoryKV()
@@ -772,8 +772,8 @@ func TestRootCoordInitData(t *testing.T) {
 	core.SetEtcdClient(etcdCli)
 
 	randVal := rand.Int()
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+	rootPath := fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 
 	// 1. normal init
 	err = core.Init()
@@ -784,10 +784,10 @@ func TestRootCoordInitData(t *testing.T) {
 	err = core.MetaTable.DeleteCredential(util.UserRoot)
 	assert.NoError(t, err)
 
-	snapshotKV, err := kvmetestore.NewMetaSnapshot(etcdCli, Params.EtcdCfg.MetaRootPath, TimestampPrefix, 7)
+	snapshotKV, err := kvmetestore.NewMetaSnapshot(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue(), TimestampPrefix, 7)
 	assert.NotNil(t, snapshotKV)
 	assert.NoError(t, err)
-	txnKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	txnKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	mt, err := NewMetaTable(context.TODO(), &kvmetestore.Catalog{Txn: txnKV, Snapshot: snapshotKV})
 	assert.NoError(t, err)
 	mockTxnKV := &mockTestTxnKV{
@@ -830,8 +830,10 @@ func TestRootCoord_Base(t *testing.T) {
 	randVal := rand.Int()
 	Params.CommonCfg.RootCoordTimeTick = fmt.Sprintf("rootcoord-time-tick-%d", randVal)
 	Params.CommonCfg.RootCoordStatistics = fmt.Sprintf("rootcoord-statistics-%d", randVal)
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+
+	rootPath := fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
+
 	Params.CommonCfg.RootCoordSubName = fmt.Sprintf("subname-%d", randVal)
 	Params.CommonCfg.RootCoordDml = fmt.Sprintf("rootcoord-dml-test-%d", randVal)
 	Params.CommonCfg.RootCoordDelta = fmt.Sprintf("rootcoord-delta-test-%d", randVal)
@@ -840,7 +842,7 @@ func TestRootCoord_Base(t *testing.T) {
 	assert.NoError(t, err)
 	defer etcdCli.Close()
 
-	sessKey := path.Join(Params.EtcdCfg.MetaRootPath, sessionutil.DefaultServiceRoot)
+	sessKey := path.Join(Params.EtcdCfg.MetaRootPath.GetValue(), sessionutil.DefaultServiceRoot)
 	_, err = etcdCli.Delete(ctx, sessKey, clientv3.WithPrefix())
 	assert.NoError(t, err)
 	defer func() {
@@ -2820,10 +2822,10 @@ func TestRootCoord2(t *testing.T) {
 
 	randVal := rand.Int()
 
+	rootPath := fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 	Params.CommonCfg.RootCoordTimeTick = fmt.Sprintf("rootcoord-time-tick-%d", randVal)
 	Params.CommonCfg.RootCoordStatistics = fmt.Sprintf("rootcoord-statistics-%d", randVal)
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
 	Params.CommonCfg.RootCoordSubName = fmt.Sprintf("subname-%d", randVal)
 
 	dm := &dataMock{randVal: randVal}
@@ -3106,8 +3108,8 @@ func TestCheckFlushedSegments(t *testing.T) {
 
 	Params.CommonCfg.RootCoordTimeTick = fmt.Sprintf("rootcoord-time-tick-%d", randVal)
 	Params.CommonCfg.RootCoordStatistics = fmt.Sprintf("rootcoord-statistics-%d", randVal)
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+	rootPath := fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 	Params.CommonCfg.RootCoordSubName = fmt.Sprintf("subname-%d", randVal)
 
 	dm := &dataMock{randVal: randVal}
@@ -3265,8 +3267,8 @@ func TestRootCoord_CheckZeroShardsNum(t *testing.T) {
 	randVal := rand.Int()
 	Params.CommonCfg.RootCoordTimeTick = fmt.Sprintf("rootcoord-time-tick-%d", randVal)
 	Params.CommonCfg.RootCoordStatistics = fmt.Sprintf("rootcoord-statistics-%d", randVal)
-	Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.MetaRootPath)
-	Params.EtcdCfg.KvRootPath = fmt.Sprintf("/%d/%s", randVal, Params.EtcdCfg.KvRootPath)
+	rootPath := fmt.Sprintf("/%d/test", randVal)
+	Params.BaseTable.Save("etcd.rootPath", rootPath)
 	Params.CommonCfg.RootCoordSubName = fmt.Sprintf("subname-%d", randVal)
 
 	dm := &dataMock{randVal: randVal}

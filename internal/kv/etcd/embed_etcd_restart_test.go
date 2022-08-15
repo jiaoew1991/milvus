@@ -42,7 +42,7 @@ func TestEtcdRestartLoad(te *testing.T) {
 		err := os.RemoveAll(etcdDataDir)
 		assert.NoError(te, err)
 	}()
-	param.EtcdCfg.LoadCfgToMemory()
+	param.Init()
 	te.Run("EtcdKV SaveRestartAndLoad", func(t *testing.T) {
 		rootPath := "/etcd/test/root/saveRestartAndLoad"
 		metaKv, err := embed_etcd_kv.NewMetaKvFactory(rootPath, &param.EtcdCfg)

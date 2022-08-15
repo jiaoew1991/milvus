@@ -1119,7 +1119,7 @@ func (c *Core) SetEtcdClient(etcdClient *clientv3.Client) {
 }
 
 func (c *Core) initSession() error {
-	c.session = sessionutil.NewSession(c.ctx, Params.EtcdCfg.MetaRootPath, c.etcdCli)
+	c.session = sessionutil.NewSession(c.ctx, Params.EtcdCfg.MetaRootPath.GetValue(), c.etcdCli)
 	if c.session == nil {
 		return fmt.Errorf("session is nil, the etcd client connection may have failed")
 	}
@@ -1148,11 +1148,11 @@ func (c *Core) Init() error {
 			return
 		}
 		connectEtcdFn := func() error {
-			if c.kvBase, initError = c.kvBaseCreate(Params.EtcdCfg.KvRootPath); initError != nil {
+			if c.kvBase, initError = c.kvBaseCreate(Params.EtcdCfg.KvRootPath.GetValue()); initError != nil {
 				log.Error("RootCoord failed to new EtcdKV for kvBase", zap.Any("reason", initError))
 				return initError
 			}
-			if c.impTaskKv, initError = c.metaKVCreate(Params.EtcdCfg.KvRootPath); initError != nil {
+			if c.impTaskKv, initError = c.metaKVCreate(Params.EtcdCfg.KvRootPath.GetValue()); initError != nil {
 				log.Error("RootCoord failed to new EtcdKV for MetaKV", zap.Any("reason", initError))
 				return initError
 			}
@@ -1161,14 +1161,14 @@ func (c *Core) Init() error {
 			switch Params.MetaStoreCfg.MetaStoreType {
 			case util.MetaStoreTypeEtcd:
 				var metaKV kv.TxnKV
-				metaKV, initError = c.kvBaseCreate(Params.EtcdCfg.MetaRootPath)
+				metaKV, initError = c.kvBaseCreate(Params.EtcdCfg.MetaRootPath.GetValue())
 				if initError != nil {
 					log.Error("RootCoord failed to new EtcdKV", zap.Any("reason", initError))
 					return initError
 				}
 
 				var ss *kvmetestore.SuffixSnapshot
-				if ss, initError = kvmetestore.NewSuffixSnapshot(metaKV, "_ts", Params.EtcdCfg.MetaRootPath, "snapshots"); initError != nil {
+				if ss, initError = kvmetestore.NewSuffixSnapshot(metaKV, "_ts", Params.EtcdCfg.MetaRootPath.GetValue(), "snapshots"); initError != nil {
 					log.Error("RootCoord failed to new suffixSnapshot", zap.Error(initError))
 					return initError
 				}
@@ -1193,14 +1193,14 @@ func (c *Core) Init() error {
 
 			return nil
 		}
-		log.Debug("RootCoord, Connecting to Etcd", zap.String("kv root", Params.EtcdCfg.KvRootPath), zap.String("meta root", Params.EtcdCfg.MetaRootPath))
+		log.Debug("RootCoord, Connecting to Etcd", zap.String("kv root", Params.EtcdCfg.KvRootPath.GetValue()), zap.String("meta root", Params.EtcdCfg.MetaRootPath.GetValue()))
 		err := retry.Do(c.ctx, connectEtcdFn, retry.Attempts(100))
 		if err != nil {
 			return
 		}
 
 		log.Debug("RootCoord, Setting TSO and ID Allocator")
-		kv := tsoutil.NewTSOKVBase(c.etcdCli, Params.EtcdCfg.KvRootPath, "gid")
+		kv := tsoutil.NewTSOKVBase(c.etcdCli, Params.EtcdCfg.KvRootPath.GetValue(), "gid")
 		idAllocator := allocator.NewGlobalIDAllocator("idTimestamp", kv)
 		if initError = idAllocator.Initialize(); initError != nil {
 			return
@@ -1212,7 +1212,7 @@ func (c *Core) Init() error {
 			return idAllocator.UpdateID()
 		}
 
-		kv = tsoutil.NewTSOKVBase(c.etcdCli, Params.EtcdCfg.KvRootPath, "tso")
+		kv = tsoutil.NewTSOKVBase(c.etcdCli, Params.EtcdCfg.KvRootPath.GetValue(), "tso")
 		tsoAllocator := tso.NewGlobalTSOAllocator("timestamp", kv)
 		if initError = tsoAllocator.Initialize(); initError != nil {
 			return

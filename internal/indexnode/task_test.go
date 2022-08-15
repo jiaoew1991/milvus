@@ -41,7 +41,7 @@ func TestIndexBuildTask_saveIndexMeta(t *testing.T) {
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.NoError(t, err)
 	assert.NotNil(t, etcdCli)
-	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	assert.NotNil(t, etcdKV)
 	indexBuildID := rand.Int63()
 	indexMeta := &indexpb.IndexMeta{

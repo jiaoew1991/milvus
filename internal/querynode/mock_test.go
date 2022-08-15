@@ -561,7 +561,7 @@ func genEtcdKV() (*etcdkv.EtcdKV, error) {
 	if err != nil {
 		return nil, err
 	}
-	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	return etcdKV, nil
 }
 
@@ -1705,7 +1705,7 @@ func genSimpleQueryNodeWithMQFactory(ctx context.Context, fac dependency.Factory
 	node.etcdCli = etcdCli
 	node.initSession()
 
-	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
+	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath.GetValue())
 	node.etcdKV = etcdKV
 
 	node.tSafeReplica = newTSafeReplica()

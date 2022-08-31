@@ -295,27 +295,18 @@ func (sc *ShardCluster) SyncSegments(distribution []*querypb.ReplicaSegmentsInfo
 	log.Info("ShardCluster sync segments", zap.Any("replica segments", distribution), zap.Int32("state", int32(state)))
 
 	sc.mut.Lock()
+	sc.segments = make(SegmentsStatus)
 	for _, line := range distribution {
 		for _, segmentID := range line.GetSegmentIds() {
-			old, ok := sc.segments[segmentID]
-			if !ok { // newly add
-				sc.segments[segmentID] = shardSegmentInfo{
-					nodeID:      line.GetNodeId(),
-					partitionID: line.GetPartitionId(),
-					segmentID:   segmentID,
-					state:       state,
-				}
-				continue
-			}
-
-			sc.transferSegment(old, shardSegmentInfo{
+			sc.segments[segmentID] = shardSegmentInfo{
 				nodeID:      line.GetNodeId(),
 				partitionID: line.GetPartitionId(),
 				segmentID:   segmentID,
 				state:       state,
-			})
+			}
 		}
 	}
+	sc.healthCheck()
 
 	allocations := sc.segments.Clone(filterNothing)
 	sc.mut.Unlock()

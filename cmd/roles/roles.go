@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/milvus-io/milvus/internal/management"
 	rocksmqimpl "github.com/milvus-io/milvus/internal/mq/mqimpl/rocksmq/server"
 	"github.com/milvus-io/milvus/internal/util/dependency"
 
@@ -516,7 +517,8 @@ func (mr *MilvusRoles) Run(local bool, alias string) {
 		http.HandleFunc(healthz.HealthzRouterPath, multiRoleHealthzHandler)
 	}
 
-	metrics.ServeHTTP(Registry)
+	metrics.Register(Registry)
+	management.ServeHTTP()
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
 		syscall.SIGHUP,

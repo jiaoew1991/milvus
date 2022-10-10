@@ -63,6 +63,14 @@ func (qs *QueryCoord) Stop() error {
 }
 
 // GetComponentStates returns QueryCoord's states
-func (qs *QueryCoord) GetComponentStates(ctx context.Context, request *internalpb.GetComponentStatesRequest) (*internalpb.ComponentStates, error) {
-	return qs.svr.GetComponentStates(ctx, request)
+func (qs *QueryCoord) Health(ctx context.Context) internalpb.StateCode {
+	resp, err := qs.svr.GetComponentStates(ctx, &internalpb.GetComponentStatesRequest{})
+	if err != nil {
+		return internalpb.StateCode_Abnormal
+	}
+	return resp.State.GetStateCode()
+}
+
+func (qs *QueryCoord) GetName() string {
+	return "QueryCoord"
 }

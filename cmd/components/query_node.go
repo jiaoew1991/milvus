@@ -64,6 +64,14 @@ func (q *QueryNode) Stop() error {
 }
 
 // GetComponentStates returns QueryNode's states
-func (q *QueryNode) GetComponentStates(ctx context.Context, request *internalpb.GetComponentStatesRequest) (*internalpb.ComponentStates, error) {
-	return q.svr.GetComponentStates(ctx, request)
+func (q *QueryNode) Health(ctx context.Context) internalpb.StateCode {
+	resp, err := q.svr.GetComponentStates(ctx, &internalpb.GetComponentStatesRequest{})
+	if err != nil {
+		return internalpb.StateCode_Abnormal
+	}
+	return resp.State.GetStateCode()
+}
+
+func (q *QueryNode) GetName() string {
+	return "QueryNode"
 }

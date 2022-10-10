@@ -61,6 +61,14 @@ func (s *IndexCoord) Stop() error {
 }
 
 // GetComponentStates returns indexnode's states
-func (s *IndexCoord) GetComponentStates(ctx context.Context, request *internalpb.GetComponentStatesRequest) (*internalpb.ComponentStates, error) {
-	return s.svr.GetComponentStates(ctx, request)
+func (s *IndexCoord) Health(ctx context.Context) internalpb.StateCode {
+	resp, err := s.svr.GetComponentStates(ctx, &internalpb.GetComponentStatesRequest{})
+	if err != nil {
+		return internalpb.StateCode_Abnormal
+	}
+	return resp.State.GetStateCode()
+}
+
+func (s *IndexCoord) GetName() string {
+	return "IndexCoord"
 }

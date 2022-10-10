@@ -23,11 +23,12 @@ import (
 	"strconv"
 
 	"github.com/milvus-io/milvus/internal/log"
+	"github.com/milvus-io/milvus/internal/management/healthz"
 	"go.uber.org/zap"
 )
 
 const (
-	DefaultListenPort = "9091"
+	DefaultListenPort = "9092"
 	ListenPortEnvKey  = "METRICS_PORT"
 )
 
@@ -39,10 +40,14 @@ type HTTPHandler struct {
 
 func registerDefaults() {
 	Register(&HTTPHandler{
-		Path: "/log/level",
+		Path: LogLevelRouterPath,
 		HandlerFunc: func(w http.ResponseWriter, req *http.Request) {
 			log.Level().ServeHTTP(w, req)
 		},
+	})
+	Register(&HTTPHandler{
+		Path:    HealthzRouterPath,
+		Handler: healthz.Handler(),
 	})
 }
 

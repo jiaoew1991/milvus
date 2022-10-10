@@ -68,6 +68,14 @@ func (rc *RootCoord) Stop() error {
 }
 
 // GetComponentStates returns RootCoord's states
-func (rc *RootCoord) GetComponentStates(ctx context.Context, request *internalpb.GetComponentStatesRequest) (*internalpb.ComponentStates, error) {
-	return rc.svr.GetComponentStates(ctx, request)
+func (rc *RootCoord) Health(ctx context.Context) internalpb.StateCode {
+	resp, err := rc.svr.GetComponentStates(ctx, &internalpb.GetComponentStatesRequest{})
+	if err != nil {
+		return internalpb.StateCode_Abnormal
+	}
+	return resp.State.GetStateCode()
+}
+
+func (rc *RootCoord) GetName() string {
+	return "RootCoord"
 }

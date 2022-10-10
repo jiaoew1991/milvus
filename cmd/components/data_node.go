@@ -63,6 +63,14 @@ func (d *DataNode) Stop() error {
 }
 
 // GetComponentStates returns DataNode's states
-func (d *DataNode) GetComponentStates(ctx context.Context, request *internalpb.GetComponentStatesRequest) (*internalpb.ComponentStates, error) {
-	return d.svr.GetComponentStates(ctx, request)
+func (d *DataNode) Health(ctx context.Context) internalpb.StateCode {
+	resp, err := d.svr.GetComponentStates(ctx, &internalpb.GetComponentStatesRequest{})
+	if err != nil {
+		return internalpb.StateCode_Abnormal
+	}
+	return resp.State.GetStateCode()
+}
+
+func (d *DataNode) GetName() string {
+	return "DataNode"
 }

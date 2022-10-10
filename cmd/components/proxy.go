@@ -64,6 +64,14 @@ func (n *Proxy) Stop() error {
 }
 
 // GetComponentStates returns Proxy's states
-func (n *Proxy) GetComponentStates(ctx context.Context, request *internalpb.GetComponentStatesRequest) (*internalpb.ComponentStates, error) {
-	return n.svr.GetComponentStates(ctx, request)
+func (rc *Proxy) Health(ctx context.Context) internalpb.StateCode {
+	resp, err := rc.svr.GetComponentStates(ctx, &internalpb.GetComponentStatesRequest{})
+	if err != nil {
+		return internalpb.StateCode_Abnormal
+	}
+	return resp.State.GetStateCode()
+}
+
+func (rc *Proxy) GetName() string {
+	return "Proxy"
 }

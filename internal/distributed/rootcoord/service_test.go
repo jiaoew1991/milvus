@@ -180,7 +180,6 @@ func TestRun(t *testing.T) {
 
 	rand.Seed(time.Now().UnixNano())
 	randVal := rand.Int()
-	rootcoord.Params.Init()
 	rootcoord.Params.EtcdCfg.MetaRootPath = fmt.Sprintf("/%d/test/meta", randVal)
 
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)

@@ -84,7 +84,6 @@ func Test_compactionTrigger_force(t *testing.T) {
 		segRefer          *SegmentReferenceManager
 	}
 
-	Params.Init()
 	Params.CommonCfg.RetentionDuration = 200
 
 	pts, _ := tsoutil.ParseTS(0)
@@ -653,7 +652,6 @@ func Test_compactionTrigger_force_maxSegmentLimit(t *testing.T) {
 		collectionID int64
 		compactTime  *compactTime
 	}
-	Params.Init()
 	vecFieldID := int64(201)
 	segmentInfos := &SegmentsInfo{
 		segments: make(map[UniqueID]*SegmentInfo),
@@ -821,7 +819,6 @@ func Test_compactionTrigger_noplan(t *testing.T) {
 		collectionID int64
 		compactTime  *compactTime
 	}
-	Params.Init()
 	vecFieldID := int64(201)
 	tests := []struct {
 		name      string
@@ -1016,7 +1013,6 @@ func Test_compactionTrigger_smallfiles(t *testing.T) {
 		collectionID int64
 		compactTime  *compactTime
 	}
-	Params.Init()
 	vecFieldID := int64(201)
 	tests := []struct {
 		name      string
@@ -1214,8 +1210,6 @@ func Test_compactionTrigger_noplan_random_size(t *testing.T) {
 		collectionID int64
 		compactTime  *compactTime
 	}
-	Params.Init()
-
 	segmentInfos := &SegmentsInfo{
 		segments: make(map[UniqueID]*SegmentInfo),
 	}
@@ -1345,8 +1339,6 @@ func Test_compactionTrigger_noplan_random_size(t *testing.T) {
 
 // Test shouldDoSingleCompaction
 func Test_compactionTrigger_shouldDoSingleCompaction(t *testing.T) {
-	Params.Init()
-
 	indexCoord := newMockIndexCoord()
 	trigger := newCompactionTrigger(&meta{}, &compactionPlanHandler{}, newMockAllocator(),
 		&SegmentReferenceManager{segmentsLock: map[UniqueID]map[UniqueID]*datapb.SegmentReferenceLock{}}, indexCoord, newMockHandler())

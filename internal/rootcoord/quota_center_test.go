@@ -74,7 +74,6 @@ func (d *dataCoordMockForQuota) GetMetrics(ctx context.Context, request *milvusp
 }
 
 func TestQuotaCenter(t *testing.T) {
-	Params.Init()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	core, err := NewCore(ctx, nil)

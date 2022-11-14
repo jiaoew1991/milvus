@@ -1320,7 +1320,6 @@ func TestCore_startTimeTickLoop(t *testing.T) {
 
 // make sure the main functions work well when EnableActiveStandby=true
 func TestRootcoord_EnableActiveStandby(t *testing.T) {
-	Params.Init()
 	Params.RootCoordCfg.EnableActiveStandby = true
 	randVal := rand.Int()
 	Params.CommonCfg.RootCoordTimeTick = fmt.Sprintf("rootcoord-time-tick-%d", randVal)

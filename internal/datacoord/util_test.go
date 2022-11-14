@@ -117,7 +117,6 @@ func (suite *UtilSuite) TestVerifyResponse() {
 }
 
 func (suite *UtilSuite) TestGetCompactTime() {
-	Params.Init()
 	Params.CommonCfg.RetentionDuration = 43200 // 5 days
 
 	tFixed := time.Date(2021, 11, 15, 0, 0, 0, 0, time.Local)

@@ -32,8 +32,6 @@ import (
 )
 
 func TestProxyManager(t *testing.T) {
-	Params.Init()
-
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()
@@ -101,8 +99,6 @@ func TestProxyManager(t *testing.T) {
 }
 
 func TestProxyManager_ErrCompacted(t *testing.T) {
-	Params.Init()
-
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	defer etcdCli.Close()

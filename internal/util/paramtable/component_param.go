@@ -71,12 +71,12 @@ type ComponentParam struct {
 // InitOnce initialize once
 func (p *ComponentParam) InitOnce() {
 	p.once.Do(func() {
-		p.Init()
+		p.init()
 	})
 }
 
 // Init initialize the global param table
-func (p *ComponentParam) Init() {
+func (p *ComponentParam) init() {
 	p.ServiceParam.Init()
 
 	p.CommonCfg.init(&p.BaseTable)

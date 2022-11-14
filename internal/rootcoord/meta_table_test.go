@@ -121,7 +121,6 @@ func (m *mockTestTxnKV) RemoveWithPrefix(key string) error {
 
 func generateMetaTable(t *testing.T) (*MetaTable, *mockTestKV, *mockTestTxnKV, func()) {
 	rand.Seed(time.Now().UnixNano())
-	Params.Init()
 
 	mockSnapshotKV := &mockTestKV{
 		loadWithPrefix: func(key string, ts typeutil.Timestamp) ([]string, []string, error) {

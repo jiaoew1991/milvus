@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"os"
 	"sync"
 	"testing"
 
@@ -28,11 +29,17 @@ import (
 	"github.com/milvus-io/milvus/internal/mq/msgstream/mqwrapper"
 	"github.com/milvus-io/milvus/internal/util/dependency"
 	"github.com/milvus-io/milvus/internal/util/funcutil"
+	"github.com/milvus-io/milvus/internal/util/paramtable"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func TestMain(m *testing.M) {
+	paramtable.Init()
+	code := m.Run()
+	os.Exit(code)
+}
 func TestDmlMsgStream(t *testing.T) {
 	t.Run("RefCnt", func(t *testing.T) {
 
@@ -129,7 +136,6 @@ func TestDmlChannels(t *testing.T) {
 	defer cancel()
 
 	factory := dependency.NewDefaultFactory(true)
-	Params.Init()
 
 	dml := newDmlChannels(ctx, factory, dmlChanPrefix, totalDmlChannelNum)
 	chanNames := dml.listChannels()

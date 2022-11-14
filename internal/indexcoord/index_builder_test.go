@@ -447,7 +447,6 @@ func createMetaTable(catalog metastore.IndexCoordCatalog) *metaTable {
 }
 
 func TestIndexBuilder(t *testing.T) {
-	Params.Init()
 	ctx := context.Background()
 
 	ic := &IndexCoord{
@@ -529,7 +528,6 @@ func TestIndexBuilder(t *testing.T) {
 }
 
 func TestIndexBuilder_Error(t *testing.T) {
-	Params.Init()
 	ib := &indexBuilder{
 		ctx: context.Background(),
 		tasks: map[int64]indexTaskState{
@@ -976,7 +974,6 @@ func TestIndexBuilder_Error(t *testing.T) {
 }
 
 func Test_indexBuilder_getTaskState(t *testing.T) {
-	Params.Init()
 	ib := &indexBuilder{
 		ctx: context.Background(),
 		tasks: map[int64]indexTaskState{
@@ -1124,7 +1121,6 @@ func Test_indexBuilder_getTaskState(t *testing.T) {
 }
 
 func Test_indexBuilder_releaseLockAndResetNode_error(t *testing.T) {
-	Params.Init()
 	ctx, cancel := context.WithCancel(context.Background())
 	ib := &indexBuilder{
 		ctx:    ctx,
@@ -1154,7 +1150,6 @@ func Test_indexBuilder_releaseLockAndResetNode_error(t *testing.T) {
 }
 
 func Test_indexBuilder_releaseLockAndResetTask_error(t *testing.T) {
-	Params.Init()
 	ctx, cancel := context.WithCancel(context.Background())
 	ib := &indexBuilder{
 		ctx:    ctx,

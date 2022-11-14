@@ -850,71 +850,7 @@ func TestService_WatchServices(t *testing.T) {
 	assert.True(t, flag)
 }
 
-//func TestServer_watchCoord(t *testing.T) {
-//	Params.Init()
-//	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
-//	assert.Nil(t, err)
-//	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
-//	assert.NotNil(t, etcdKV)
-//	factory := dependency.NewDefaultFactory(true)
-//	svr := CreateServer(context.TODO(), factory)
-//	svr.session = &sessionutil.Session{
-//		TriggerKill: true,
-//	}
-//	svr.kvClient = etcdKV
-//
-//	dnCh := make(chan *sessionutil.SessionEvent)
-//	//icCh := make(chan *sessionutil.SessionEvent)
-//	qcCh := make(chan *sessionutil.SessionEvent)
-//	rcCh := make(chan *sessionutil.SessionEvent)
-//
-//	svr.dnEventCh = dnCh
-//	//svr.icEventCh = icCh
-//	svr.qcEventCh = qcCh
-//	svr.rcEventCh = rcCh
-//
-//	segRefer, err := NewSegmentReferenceManager(etcdKV, nil)
-//	assert.NoError(t, err)
-//	assert.NotNil(t, segRefer)
-//	svr.segReferManager = segRefer
-//
-//	sc := make(chan os.Signal, 1)
-//	signal.Notify(sc, syscall.SIGINT)
-//	defer signal.Reset(syscall.SIGINT)
-//	closed := false
-//	sigQuit := make(chan struct{}, 1)
-//
-//	svr.serverLoopWg.Add(1)
-//	go func() {
-//		svr.watchService(context.Background())
-//	}()
-//
-//	go func() {
-//		<-sc
-//		closed = true
-//		sigQuit <- struct{}{}
-//	}()
-//
-//	icCh <- &sessionutil.SessionEvent{
-//		EventType: sessionutil.SessionAddEvent,
-//		Session: &sessionutil.Session{
-//			ServerID: 1,
-//		},
-//	}
-//	icCh <- &sessionutil.SessionEvent{
-//		EventType: sessionutil.SessionDelEvent,
-//		Session: &sessionutil.Session{
-//			ServerID: 1,
-//		},
-//	}
-//	close(icCh)
-//	<-sigQuit
-//	svr.serverLoopWg.Wait()
-//	assert.True(t, closed)
-//}
-
 func TestServer_watchQueryCoord(t *testing.T) {
-	Params.Init()
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	etcdKV := etcdkv.NewEtcdKV(etcdCli, Params.EtcdCfg.MetaRootPath)
@@ -3357,7 +3293,6 @@ func (ms *MockClosePanicMsgstream) Chan() <-chan *msgstream.MsgPack {
 
 func newTestServer(t *testing.T, receiveCh chan any, opts ...Option) *Server {
 	var err error
-	Params.Init()
 	Params.CommonCfg.DataCoordTimeTick = Params.CommonCfg.DataCoordTimeTick + strconv.Itoa(rand.Int())
 	factory := dependency.NewDefaultFactory(true)
 
@@ -3396,7 +3331,6 @@ func newTestServer(t *testing.T, receiveCh chan any, opts ...Option) *Server {
 
 func newTestServerWithMeta(t *testing.T, receiveCh chan any, meta *meta, opts ...Option) *Server {
 	var err error
-	Params.Init()
 	Params.CommonCfg.DataCoordTimeTick = Params.CommonCfg.DataCoordTimeTick + strconv.Itoa(rand.Int())
 	factory := dependency.NewDefaultFactory(true)
 
@@ -3444,7 +3378,6 @@ func closeTestServer(t *testing.T, svr *Server) {
 
 func newTestServer2(t *testing.T, receiveCh chan any, opts ...Option) *Server {
 	var err error
-	Params.Init()
 	Params.CommonCfg.DataCoordTimeTick = Params.CommonCfg.DataCoordTimeTick + strconv.Itoa(rand.Int())
 	factory := dependency.NewDefaultFactory(true)
 
@@ -3678,7 +3611,6 @@ func testDataCoordBase(t *testing.T, opts ...Option) *Server {
 }
 
 func TestDataCoord_DisableActiveStandby(t *testing.T) {
-	Params.Init()
 	Params.DataCoordCfg.EnableActiveStandby = false
 	svr := testDataCoordBase(t)
 	defer closeTestServer(t, svr)

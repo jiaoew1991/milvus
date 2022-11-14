@@ -47,7 +47,6 @@ const (
 )
 
 type mck struct {
-	params              *paramtable.ComponentParam
 	taskKeyMap          map[int64]string
 	taskNameMap         map[int64]string
 	allTaskInfo         map[string]string
@@ -214,25 +213,26 @@ func (c *mck) formatFlags(args []string, flags *flag.FlagSet) {
 }
 
 func (c *mck) connectEctd() {
-	c.params.Init()
+	paramtable.Init()
+	params := paramtable.Get()
 	var etcdCli *clientv3.Client
 	var err error
 	if c.etcdIP != "" {
 		etcdCli, err = etcd.GetRemoteEtcdClient([]string{c.etcdIP})
 	} else {
-		etcdCli, err = etcd.GetEtcdClient(&c.params.EtcdCfg)
+		etcdCli, err = etcd.GetEtcdClient(&params.EtcdCfg)
 	}
 	if err != nil {
 		log.Fatal("failed to connect to etcd", zap.Error(err))
 	}
 
-	rootPath := getConfigValue(c.ectdRootPath, c.params.EtcdCfg.MetaRootPath, "ectd_root_path")
+	rootPath := getConfigValue(c.ectdRootPath, params.EtcdCfg.MetaRootPath, "ectd_root_path")
 	c.etcdKV = etcdkv.NewEtcdKV(etcdCli, rootPath)
 	log.Info("Etcd root path", zap.String("root_path", rootPath))
 }
 
 func (c *mck) connectMinio() {
-	chunkManagerFactory := storage.NewChunkManagerFactoryWithParam(c.params)
+	chunkManagerFactory := storage.NewChunkManagerFactoryWithParam(paramtable.Get())
 
 	var err error
 	c.minioChunkManager, err = chunkManagerFactory.NewPersistentStorageChunkManager(context.Background())

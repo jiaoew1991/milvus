@@ -102,8 +102,6 @@ func (p *proxyMock) RefreshPolicyInfoCache(ctx context.Context, req *proxypb.Ref
 }
 
 func TestProxyClientManager_GetProxyClients(t *testing.T) {
-	Params.Init()
-
 	core, err := NewCore(context.Background(), nil)
 	assert.Nil(t, err)
 	cli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
@@ -126,8 +124,6 @@ func TestProxyClientManager_GetProxyClients(t *testing.T) {
 }
 
 func TestProxyClientManager_AddProxyClient(t *testing.T) {
-	Params.Init()
-
 	core, err := NewCore(context.Background(), nil)
 	assert.Nil(t, err)
 	cli, err := etcd.GetEtcdClient(&Params.EtcdCfg)

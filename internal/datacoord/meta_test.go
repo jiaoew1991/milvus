@@ -253,8 +253,6 @@ func TestMeta_Basic(t *testing.T) {
 
 	testSchema := newTestSchema()
 
-	Params.Init()
-
 	collInfo := &collectionInfo{
 		ID:             collID,
 		Schema:         testSchema,

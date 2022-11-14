@@ -35,7 +35,6 @@ import (
 func Test_SegmentReferenceManager(t *testing.T) {
 	var segRefer *SegmentReferenceManager
 	var err error
-	Params.Init()
 	etcdCli, err := etcd.GetEtcdClient(&Params.EtcdCfg)
 	assert.Nil(t, err)
 	etcdKV := etcdkv.NewEtcdKV(etcdCli, "unittest")

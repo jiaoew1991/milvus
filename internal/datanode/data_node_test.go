@@ -61,8 +61,8 @@ func TestMain(t *testing.M) {
 	os.Setenv("ROCKSMQ_PATH", path)
 	defer os.RemoveAll(path)
 
+	paramtable.Init()
 	Params.DataNodeCfg.InitAlias("datanode-alias-1")
-	Params.Init()
 	// change to specific channel for test
 	Params.CommonCfg.DataCoordTimeTick = Params.CommonCfg.DataCoordTimeTick + strconv.Itoa(rand.Int())
 

@@ -114,14 +114,6 @@ func (mr *MilvusRoles) EnvValue(env string) bool {
 	return env == "1" || env == "true"
 }
 
-func (mr *MilvusRoles) printLDPreLoad() {
-	const LDPreLoad = "LD_PRELOAD"
-	val, ok := os.LookupEnv(LDPreLoad)
-	if ok {
-		log.Info("Enable Jemalloc", zap.String("Jemalloc Path", val))
-	}
-}
-
 func (mr *MilvusRoles) runRootCoord(ctx context.Context, localMsg bool) *components.RootCoord {
 	return runComponent(ctx, localMsg, components.NewRootCoord, metrics.RegisterRootCoord)
 }
@@ -176,7 +168,6 @@ func (mr *MilvusRoles) Run(local bool, alias string) {
 		// some deferred Stop has race with context cancel
 		cancel()
 	}()
-	mr.printLDPreLoad()
 
 	// only standalone enable localMsg
 	if local {

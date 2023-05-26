@@ -49,7 +49,7 @@ cppcheck:
 
 # put generate proto as a separated target because build cpp have different cases like with unittest.
 generated-proto-go-without-cpp: export protoc:=${PWD}/cmake_build/thirdparty/protobuf/protobuf-build/protoc
-generated-proto-go-without-cpp: 
+generated-proto-go-without-cpp:
 	@mkdir -p ${GOPATH}/bin
 	@which protoc-gen-go 1>/dev/null || (echo "Installing protoc-gen-go" && cd /tmp && go install github.com/golang/protobuf/protoc-gen-go@v1.3.2)
 	@(env bash $(PWD)/scripts/proto_gen_go.sh)
@@ -59,7 +59,7 @@ generated-proto-go: build-cpp generated-proto-go-without-cpp
 check-proto-product-only:
 	 @(env bash $(PWD)/scripts/check_proto_product.sh)
 check-proto-product: generated-proto-go check-proto-product-only
-	
+
 
 fmt:
 ifdef GO_DIFF_FILES
@@ -137,7 +137,7 @@ download-milvus-proto:
 
 build-cpp: download-milvus-proto
 	@echo "Building Milvus cpp library ..."
-	@(env bash $(PWD)/scripts/core_build.sh -t ${mode} -f "$(CUSTOM_THIRDPARTY_PATH)" -n ${disk_index} -i ${opensimd})
+	@(env bash $(PWD)/scripts/core_build.sh -t ${mode} -f "$(CUSTOM_THIRDPARTY_PATH)" -n ${disk_index} -i ${opensimd} -a)
 
 build-cpp-embd: download-milvus-proto
 	@echo "Building **Embedded** Milvus cpp library ..."

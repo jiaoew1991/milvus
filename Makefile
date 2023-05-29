@@ -137,7 +137,7 @@ download-milvus-proto:
 
 build-cpp: download-milvus-proto
 	@echo "Building Milvus cpp library ..."
-	@(env bash $(PWD)/scripts/core_build.sh -t ${mode} -f "$(CUSTOM_THIRDPARTY_PATH)" -n ${disk_index} -i ${opensimd} -a)
+	@(env bash $(PWD)/scripts/core_build.sh -t ${mode} -f "$(CUSTOM_THIRDPARTY_PATH)" -n ${disk_index} -i ${opensimd})
 
 build-cpp-embd: download-milvus-proto
 	@echo "Building **Embedded** Milvus cpp library ..."

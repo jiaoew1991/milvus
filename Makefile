@@ -19,7 +19,7 @@ INSTALL_PATH := $(PWD)/bin
 LIBRARY_PATH := $(PWD)/lib
 OS := $(shell uname -s)
 ARCH := $(shell arch)
-mode = Release
+mode = Debug
 disk_index = OFF
 useasan = false
 ifeq (${USE_ASAN}, true)
@@ -30,6 +30,7 @@ opensimd = OFF
 export GIT_BRANCH=master
 
 milvus: build-cpp print-build-info
+# milvus:
 	@echo "Building Milvus ..."
 	@source $(PWD)/scripts/setenv.sh && \
 		mkdir -p $(INSTALL_PATH) && go env -w CGO_ENABLED="1" && \
@@ -159,6 +160,8 @@ generated-proto: download-milvus-proto build-3rdparty
 build-cpp: generated-proto
 	@echo "Building Milvus cpp library ..."
 	@(env bash $(PWD)/scripts/core_build.sh -t ${mode} -f "$(CUSTOM_THIRDPARTY_PATH)" -n ${disk_index} -i ${opensimd})
+	@mkdir -p $(PWD)/bin && cp -f $(PWD)/internal/core/output/bin/* $(PWD)/bin/
+
 
 build-cpp-gpu: generated-proto
 	@echo "Building Milvus cpp gpu library ..."

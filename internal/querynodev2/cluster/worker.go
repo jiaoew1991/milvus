@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/internal/distributed/segcore"
 	"github.com/milvus-io/milvus/internal/proto/internalpb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/internal/types"
@@ -48,13 +49,15 @@ type Worker interface {
 
 // remoteWorker wraps grpc QueryNode client as Worker.
 type remoteWorker struct {
-	client types.QueryNode
+	client  types.QueryNode
+	segcore *segcore.Client
 }
 
 // NewRemoteWorker creates a grpcWorker.
-func NewRemoteWorker(client types.QueryNode) Worker {
+func NewRemoteWorker(client types.QueryNode, segcore *segcore.Client) Worker {
 	return &remoteWorker{
-		client: client,
+		client:  client,
+		segcore: segcore,
 	}
 }
 

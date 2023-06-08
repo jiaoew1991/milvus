@@ -44,6 +44,7 @@ import (
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/internal/distributed/segcore"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/internal/proto/segcorepb"
@@ -175,8 +176,9 @@ var _ Segment = (*LocalSegment)(nil)
 // Segment is a wrapper of the underlying C-structure segment.
 type LocalSegment struct {
 	baseSegment
-	mut sync.RWMutex // protects segmentPtr
-	ptr C.CSegmentInterface
+	mut     sync.RWMutex // protects segmentPtr
+	ptr     C.CSegmentInterface
+	segcore *segcore.Client
 
 	size               int64
 	row                int64
@@ -217,6 +219,48 @@ func NewSegment(collection *Collection,
 	var segment = &LocalSegment{
 		baseSegment:        newBaseSegment(segmentID, partitionID, collectionID, shard, segmentType, version, startPosition),
 		ptr:                segmentPtr,
+		lastDeltaTimestamp: atomic.NewUint64(deltaPosition.GetTimestamp()),
+		fieldIndexes:       typeutil.NewConcurrentMap[int64, *IndexedFieldInfo](),
+	}
+
+	return segment, nil
+}
+
+func NewSegment2(collection *Collection,
+	segmentID int64,
+	partitionID int64,
+	collectionID int64,
+	shard string,
+	segmentType SegmentType,
+	version int64,
+	startPosition *msgpb.MsgPosition,
+	deltaPosition *msgpb.MsgPosition,
+	segcore *segcore.Client,
+) (*LocalSegment, error) {
+	/*
+		CSegmentInterface
+		NewSegment(CCollection collection, uint64_t segment_id, SegmentType seg_type);
+	*/
+	// var segmentPtr C.CSegmentInterface
+	// switch segmentType {
+	// case SegmentTypeSealed:
+	// 	segmentPtr = C.NewSegment(collection.collectionPtr, C.Sealed, C.int64_t(segmentID))
+	// case SegmentTypeGrowing:
+	// 	segmentPtr = C.NewSegment(collection.collectionPtr, C.Growing, C.int64_t(segmentID))
+	// default:
+	// 	return nil, fmt.Errorf("illegal segment type %d when create segment %d", segmentType, segmentID)
+	// }
+	//
+	log.Info("create segment",
+		zap.Int64("collectionID", collectionID),
+		zap.Int64("partitionID", partitionID),
+		zap.Int64("segmentID", segmentID),
+		zap.String("segmentType", segmentType.String()))
+
+	var segment = &LocalSegment{
+		baseSegment: newBaseSegment(segmentID, partitionID, collectionID, shard, segmentType, version, startPosition),
+		// ptr:                segmentPtr,
+		segcore:            segcore,
 		lastDeltaTimestamp: atomic.NewUint64(deltaPosition.GetTimestamp()),
 		fieldIndexes:       typeutil.NewConcurrentMap[int64, *IndexedFieldInfo](),
 	}
@@ -525,57 +569,72 @@ func (s *LocalSegment) preInsert(numOfRecords int) (int64, error) {
 }
 
 func (s *LocalSegment) Insert(rowIDs []int64, timestamps []typeutil.Timestamp, record *segcorepb.InsertRecord) error {
-	if s.Type() != SegmentTypeGrowing {
-		return fmt.Errorf("unexpected segmentType when segmentInsert, segmentType = %s", s.typ.String())
-	}
-
-	s.mut.RLock()
-	defer s.mut.RUnlock()
-
-	if s.ptr == nil {
-		return WrapSegmentReleased(s.segmentID)
-	}
-
-	offset, err := s.preInsert(len(rowIDs))
+	status, err := s.segcore.Insert(context.Background(), &segcorepb.InsertRequest{
+		Base:         &commonpb.MsgBase{},
+		CollectionID: s.collectionID,
+		SegmentID:    s.segmentID,
+		RowIDs:       rowIDs,
+		Timestamps:   timestamps,
+		Record:       record,
+	})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "insert failed")
 	}
-
-	insertRecordBlob, err := proto.Marshal(record)
-	if err != nil {
-		return fmt.Errorf("failed to marshal insert record: %s", err)
+	if status.ErrorCode != commonpb.ErrorCode_Success {
+		return errors.New(status.Reason)
 	}
-
-	var numOfRow = len(rowIDs)
-	var cOffset = C.int64_t(offset)
-	var cNumOfRows = C.int64_t(numOfRow)
-	var cEntityIdsPtr = (*C.int64_t)(&(rowIDs)[0])
-	var cTimestampsPtr = (*C.uint64_t)(&(timestamps)[0])
-
-	var status C.CStatus
-
-	GetPool().Submit(func() (any, error) {
-		status = C.Insert(s.ptr,
-			cOffset,
-			cNumOfRows,
-			cEntityIdsPtr,
-			cTimestampsPtr,
-			(*C.uint8_t)(unsafe.Pointer(&insertRecordBlob[0])),
-			(C.uint64_t)(len(insertRecordBlob)),
-		)
-		return nil, nil
-	}).Await()
-	if err := HandleCStatus(&status, "Insert failed"); err != nil {
-		return err
-	}
-	metrics.QueryNodeNumEntities.WithLabelValues(
-		fmt.Sprint(paramtable.GetNodeID()),
-		fmt.Sprint(s.collectionID),
-		fmt.Sprint(s.partitionID),
-		s.Type().String(),
-		fmt.Sprint(0),
-	).Add(float64(numOfRow))
 	return nil
+	// if s.Type() != SegmentTypeGrowing {
+	// 	return fmt.Errorf("unexpected segmentType when segmentInsert, segmentType = %s", s.typ.String())
+	// }
+	//
+	// s.mut.RLock()
+	// defer s.mut.RUnlock()
+	//
+	// if s.ptr == nil {
+	// 	return WrapSegmentReleased(s.segmentID)
+	// }
+	//
+	// offset, err := s.preInsert(len(rowIDs))
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// insertRecordBlob, err := proto.Marshal(record)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to marshal insert record: %s", err)
+	// }
+	//
+	// var numOfRow = len(rowIDs)
+	// var cOffset = C.int64_t(offset)
+	// var cNumOfRows = C.int64_t(numOfRow)
+	// var cEntityIdsPtr = (*C.int64_t)(&(rowIDs)[0])
+	// var cTimestampsPtr = (*C.uint64_t)(&(timestamps)[0])
+	//
+	// var status C.CStatus
+	//
+	// GetPool().Submit(func() (any, error) {
+	// 	status = C.Insert(s.ptr,
+	// 		cOffset,
+	// 		cNumOfRows,
+	// 		cEntityIdsPtr,
+	// 		cTimestampsPtr,
+	// 		(*C.uint8_t)(unsafe.Pointer(&insertRecordBlob[0])),
+	// 		(C.uint64_t)(len(insertRecordBlob)),
+	// 	)
+	// 	return nil, nil
+	// }).Await()
+	// if err := HandleCStatus(&status, "Insert failed"); err != nil {
+	// 	return err
+	// }
+	// metrics.QueryNodeNumEntities.WithLabelValues(
+	// 	fmt.Sprint(paramtable.GetNodeID()),
+	// 	fmt.Sprint(s.collectionID),
+	// 	fmt.Sprint(s.partitionID),
+	// 	s.Type().String(),
+	// 	fmt.Sprint(0),
+	// ).Add(float64(numOfRow))
+	// return nil
 }
 
 func (s *LocalSegment) Delete(primaryKeys []storage.PrimaryKey, timestamps []typeutil.Timestamp) error {
@@ -594,10 +653,6 @@ func (s *LocalSegment) Delete(primaryKeys []storage.PrimaryKey, timestamps []typ
 	if s.ptr == nil {
 		return WrapSegmentReleased(s.segmentID)
 	}
-
-	var cOffset = C.int64_t(0) // depre
-	var cSize = C.int64_t(len(primaryKeys))
-	var cTimestampsPtr = (*C.uint64_t)(&(timestamps)[0])
 
 	ids := &schemapb.IDs{}
 	pkType := primaryKeys[0].Type()
@@ -625,30 +680,85 @@ func (s *LocalSegment) Delete(primaryKeys []storage.PrimaryKey, timestamps []typ
 	default:
 		return fmt.Errorf("invalid data type of primary keys")
 	}
-
-	dataBlob, err := proto.Marshal(ids)
+	status, err := s.segcore.Delete(context.Background(), &segcorepb.DeleteRequest{
+		Base:         &commonpb.MsgBase{},
+		CollectionId: s.collectionID,
+		PartitionId:  s.partitionID,
+		VchannelName: s.startPosition.ChannelName,
+		SegmentId:    s.segmentID,
+		PrimaryKeys:  ids,
+		Timestamps:   timestamps,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to marshal ids: %s", err)
+		return errors.Wrap(err, "insert failed")
 	}
-	var status C.CStatus
-	GetPool().Submit(func() (any, error) {
-		status = C.Delete(s.ptr,
-			cOffset,
-			cSize,
-			(*C.uint8_t)(unsafe.Pointer(&dataBlob[0])),
-			(C.uint64_t)(len(dataBlob)),
-			cTimestampsPtr,
-		)
-		return nil, nil
-	}).Await()
-
-	if err := HandleCStatus(&status, "Delete failed"); err != nil {
-		return err
+	if status.ErrorCode != commonpb.ErrorCode_Success {
+		return errors.New(status.Reason)
 	}
-
-	s.lastDeltaTimestamp.Store(timestamps[len(timestamps)-1])
-
 	return nil
+	// s.mut.RLock()
+	// defer s.mut.RUnlock()
+	//
+	// if s.ptr == nil {
+	// 	return WrapSegmentReleased(s.segmentID)
+	// }
+	//
+	// offset := s.preDelete(len(primaryKeys))
+	//
+	// var cOffset = C.int64_t(offset)
+	// var cSize = C.int64_t(len(primaryKeys))
+	// var cTimestampsPtr = (*C.uint64_t)(&(timestamps)[0])
+	//
+	// ids := &schemapb.IDs{}
+	// pkType := primaryKeys[0].Type()
+	// switch pkType {
+	// case schemapb.DataType_Int64:
+	// 	int64Pks := make([]int64, len(primaryKeys))
+	// 	for index, pk := range primaryKeys {
+	// 		int64Pks[index] = pk.(*storage.Int64PrimaryKey).Value
+	// 	}
+	// 	ids.IdField = &schemapb.IDs_IntId{
+	// 		IntId: &schemapb.LongArray{
+	// 			Data: int64Pks,
+	// 		},
+	// 	}
+	// case schemapb.DataType_VarChar:
+	// 	varCharPks := make([]string, len(primaryKeys))
+	// 	for index, entity := range primaryKeys {
+	// 		varCharPks[index] = entity.(*storage.VarCharPrimaryKey).Value
+	// 	}
+	// 	ids.IdField = &schemapb.IDs_StrId{
+	// 		StrId: &schemapb.StringArray{
+	// 			Data: varCharPks,
+	// 		},
+	// 	}
+	// default:
+	// 	return fmt.Errorf("invalid data type of primary keys")
+	// }
+	//
+	// dataBlob, err := proto.Marshal(ids)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to marshal ids: %s", err)
+	// }
+	// var status C.CStatus
+	// GetPool().Submit(func() (any, error) {
+	// 	status = C.Delete(s.ptr,
+	// 		cOffset,
+	// 		cSize,
+	// 		(*C.uint8_t)(unsafe.Pointer(&dataBlob[0])),
+	// 		(C.uint64_t)(len(dataBlob)),
+	// 		cTimestampsPtr,
+	// 	)
+	// 	return nil, nil
+	// }).Await()
+	//
+	// if err := HandleCStatus(&status, "Delete failed"); err != nil {
+	// 	return err
+	// }
+	//
+	// s.lastDeltaTimestamp.Store(timestamps[len(timestamps)-1])
+	//
+	// return nil
 }
 
 // -------------------------------------------------------------------------------------- interfaces for sealed segment
@@ -656,103 +766,122 @@ func (s *LocalSegment) LoadMultiFieldData(rowCount int64, fields []*datapb.Field
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 
-	if s.ptr == nil {
-		return WrapSegmentReleased(s.segmentID)
-	}
-
+	// if s.ptr == nil {
+	// 	return WrapSegmentReleased(s.segmentID)
+	// }
+	//
 	log := log.With(
 		zap.Int64("collectionID", s.Collection()),
 		zap.Int64("partitionID", s.Partition()),
 		zap.Int64("segmentID", s.ID()),
 	)
 
-	loadFieldDataInfo, err := newLoadFieldDataInfo()
-	defer deleteFieldDataInfo(loadFieldDataInfo)
+	status, err := s.segcore.LoadSegments(context.Background(), &segcorepb.LoadSegmentsRequest{
+		Base:         &commonpb.MsgBase{},
+		CollectionID: s.collectionID,
+		SegmentId:    s.segmentID,
+		RowCount:     rowCount,
+		Fields:       fields,
+		MmapDirPath:  paramtable.Get().QueryNodeCfg.MmapDirPath.GetValue(),
+	})
+	log.Debug("LoadMultiFieldData", zap.Any("status", status), zap.Error(err))
+
 	if err != nil {
-		return err
+		return errors.Wrap(err, "insert failed")
 	}
-
-	for _, field := range fields {
-		fieldID := field.FieldID
-		err = loadFieldDataInfo.appendLoadFieldInfo(fieldID, rowCount)
-		if err != nil {
-			return err
-		}
-
-		for _, binlog := range field.Binlogs {
-			err = loadFieldDataInfo.appendLoadFieldDataPath(fieldID, binlog.GetLogPath())
-			if err != nil {
-				return err
-			}
-		}
-
-		loadFieldDataInfo.appendMMapDirPath(paramtable.Get().QueryNodeCfg.MmapDirPath.GetValue())
+	if status.ErrorCode != commonpb.ErrorCode_Success {
+		return errors.New(status.Reason)
 	}
-
-	var status C.CStatus
-	GetPool().Submit(func() (any, error) {
-		status = C.LoadFieldData(s.ptr, loadFieldDataInfo.cLoadFieldDataInfo)
-		return nil, nil
-	}).Await()
-	if err := HandleCStatus(&status, "LoadMultiFieldData failed"); err != nil {
-		return err
-	}
-
-	log.Info("load mutil field done",
-		zap.Int64("row count", rowCount),
-		zap.Int64("segmentID", s.ID()))
-
 	return nil
+
+	// loadFieldDataInfo, err := newLoadFieldDataInfo()
+	// defer deleteFieldDataInfo(loadFieldDataInfo)
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// for _, field := range fields {
+	// 	fieldID := field.FieldID
+	// 	err = loadFieldDataInfo.appendLoadFieldInfo(fieldID, rowCount)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	//
+	// 	for _, binlog := range field.Binlogs {
+	// 		err = loadFieldDataInfo.appendLoadFieldDataPath(fieldID, binlog.GetLogPath())
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	}
+	//
+	// 	loadFieldDataInfo.appendMMapDirPath(paramtable.Get().QueryNodeCfg.MmapDirPath.GetValue())
+	// }
+	//
+	// var status C.CStatus
+	// GetPool().Submit(func() (any, error) {
+	// 	status = C.LoadFieldData(s.ptr, loadFieldDataInfo.cLoadFieldDataInfo)
+	// 	return nil, nil
+	// }).Await()
+	// if err := HandleCStatus(&status, "LoadMultiFieldData failed"); err != nil {
+	// 	return err
+	// }
+	//
+	// log.Info("load mutil field done",
+	// 	zap.Int64("row count", rowCount),
+	// 	zap.Int64("segmentID", s.ID()))
+	//
+	// return nil
 }
 
 func (s *LocalSegment) LoadFieldData(fieldID int64, rowCount int64, field *datapb.FieldBinlog) error {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
-
-	if s.ptr == nil {
-		return WrapSegmentReleased(s.segmentID)
-	}
-
-	log := log.With(
-		zap.Int64("collectionID", s.Collection()),
-		zap.Int64("partitionID", s.Partition()),
-		zap.Int64("segmentID", s.ID()),
-	)
-
-	loadFieldDataInfo, err := newLoadFieldDataInfo()
-	defer deleteFieldDataInfo(loadFieldDataInfo)
-	if err != nil {
-		return err
-	}
-
-	err = loadFieldDataInfo.appendLoadFieldInfo(fieldID, rowCount)
-	if err != nil {
-		return err
-	}
-
-	for _, binlog := range field.Binlogs {
-		err = loadFieldDataInfo.appendLoadFieldDataPath(fieldID, binlog.GetLogPath())
-		if err != nil {
-			return err
-		}
-	}
-	loadFieldDataInfo.appendMMapDirPath(paramtable.Get().QueryNodeCfg.MmapDirPath.GetValue())
-
-	var status C.CStatus
-	GetPool().Submit(func() (any, error) {
-		status = C.LoadFieldData(s.ptr, loadFieldDataInfo.cLoadFieldDataInfo)
-		return nil, nil
-	}).Await()
-	if err := HandleCStatus(&status, "LoadFieldData failed"); err != nil {
-		return err
-	}
-
-	log.Info("load field done",
-		zap.Int64("fieldID", fieldID),
-		zap.Int64("row count", rowCount),
-		zap.Int64("segmentID", s.ID()))
-
-	return nil
+	return s.LoadMultiFieldData(rowCount, []*datapb.FieldBinlog{field})
+	// s.mut.RLock()
+	// defer s.mut.RUnlock()
+	//
+	// if s.ptr == nil {
+	// 	return WrapSegmentReleased(s.segmentID)
+	// }
+	//
+	// log := log.With(
+	// 	zap.Int64("collectionID", s.Collection()),
+	// 	zap.Int64("partitionID", s.Partition()),
+	// 	zap.Int64("segmentID", s.ID()),
+	// )
+	//
+	// loadFieldDataInfo, err := newLoadFieldDataInfo()
+	// defer deleteFieldDataInfo(loadFieldDataInfo)
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// err = loadFieldDataInfo.appendLoadFieldInfo(fieldID, rowCount)
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// for _, binlog := range field.Binlogs {
+	// 	err = loadFieldDataInfo.appendLoadFieldDataPath(fieldID, binlog.GetLogPath())
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
+	// loadFieldDataInfo.appendMMapDirPath(paramtable.Get().QueryNodeCfg.MmapDirPath.GetValue())
+	//
+	// var status C.CStatus
+	// GetPool().Submit(func() (any, error) {
+	// 	status = C.LoadFieldData(s.ptr, loadFieldDataInfo.cLoadFieldDataInfo)
+	// 	return nil, nil
+	// }).Await()
+	// if err := HandleCStatus(&status, "LoadFieldData failed"); err != nil {
+	// 	return err
+	// }
+	//
+	// log.Info("load field done",
+	// 	zap.Int64("fieldID", fieldID),
+	// 	zap.Int64("row count", rowCount),
+	// 	zap.Int64("segmentID", s.ID()))
+	//
+	// return nil
 }
 
 func (s *LocalSegment) LoadDeltaData(deltaData *storage.DeleteData) error {
@@ -879,31 +1008,6 @@ func (s *LocalSegment) LoadIndex(bytesIndex [][]byte, indexInfo *querypb.FieldIn
 }
 
 func (s *LocalSegment) LoadIndexData(indexInfo *querypb.FieldIndexInfo, fieldType schemapb.DataType) error {
-	loadIndexInfo, err := newLoadIndexInfo()
-	defer deleteLoadIndexInfo(loadIndexInfo)
-	if err != nil {
-		return err
-	}
-
-	err = loadIndexInfo.appendLoadIndexInfo(nil, indexInfo, s.collectionID, s.partitionID, s.segmentID, fieldType)
-	if err != nil {
-		if loadIndexInfo.cleanLocalData() != nil {
-			log.Warn("failed to clean cached data on disk after append index failed",
-				zap.Int64("buildID", indexInfo.BuildID),
-				zap.Int64("index version", indexInfo.IndexVersion))
-		}
-		return err
-	}
-	if s.Type() != SegmentTypeSealed {
-		errMsg := fmt.Sprintln("updateSegmentIndex failed, illegal segment type ", s.typ, "segmentID = ", s.ID())
-		return errors.New(errMsg)
-	}
-	s.mut.RLock()
-	defer s.mut.RUnlock()
-
-	if s.ptr == nil {
-		return WrapSegmentReleased(s.segmentID)
-	}
 
 	log := log.With(
 		zap.Int64("collectionID", s.Collection()),
@@ -911,17 +1015,73 @@ func (s *LocalSegment) LoadIndexData(indexInfo *querypb.FieldIndexInfo, fieldTyp
 		zap.Int64("segmentID", s.ID()),
 	)
 
-	var status C.CStatus
-	GetPool().Submit(func() (any, error) {
-		status = C.UpdateSealedSegmentIndex(s.ptr, loadIndexInfo.cLoadIndexInfo)
-		return nil, nil
-	}).Await()
+	log.Info("LoadIndexData", zap.Any("indexInfo", indexInfo))
+	status, err := s.segcore.UpdateSegmentIndex(context.Background(), &segcorepb.UpdateIndexRequest{
+		Base:         &commonpb.MsgBase{},
+		CollectionID: s.collectionID,
+		PartitionID:  s.partitionID,
+		SegmentID:    s.segmentID,
+		FieldID:      indexInfo.FieldID,
+		FieldType:    int64(fieldType),
+		IndexID:      indexInfo.IndexID,
+		IndexBuildID: indexInfo.BuildID,
+		IndexVersion: indexInfo.IndexVersion,
+		IndexParams:  indexInfo.IndexParams,
+		IndexFiles:   indexInfo.IndexFilePaths,
+	})
+	log.Info("LoadMultiFieldData", zap.Any("status", status), zap.Error(err))
 
-	if err := HandleCStatus(&status, "UpdateSealedSegmentIndex failed"); err != nil {
-		return err
+	if err != nil {
+		return errors.Wrap(err, "insert failed")
 	}
-
-	log.Info("updateSegmentIndex done", zap.Int64("fieldID", indexInfo.FieldID))
-
+	if status.ErrorCode != commonpb.ErrorCode_Success {
+		return errors.New(status.Reason)
+	}
 	return nil
+
+	// loadIndexInfo, err := newLoadIndexInfo()
+	// defer deleteLoadIndexInfo(loadIndexInfo)
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// err = loadIndexInfo.appendLoadIndexInfo(nil, indexInfo, s.collectionID, s.partitionID, s.segmentID, fieldType)
+	// if err != nil {
+	// 	if loadIndexInfo.cleanLocalData() != nil {
+	// 		log.Warn("failed to clean cached data on disk after append index failed",
+	// 			zap.Int64("buildID", indexInfo.BuildID),
+	// 			zap.Int64("index version", indexInfo.IndexVersion))
+	// 	}
+	// 	return err
+	// }
+	// if s.Type() != SegmentTypeSealed {
+	// 	errMsg := fmt.Sprintln("updateSegmentIndex failed, illegal segment type ", s.typ, "segmentID = ", s.ID())
+	// 	return errors.New(errMsg)
+	// }
+	// s.mut.RLock()
+	// defer s.mut.RUnlock()
+	//
+	// if s.ptr == nil {
+	// 	return WrapSegmentReleased(s.segmentID)
+	// }
+	//
+	// log := log.With(
+	// 	zap.Int64("collectionID", s.Collection()),
+	// 	zap.Int64("partitionID", s.Partition()),
+	// 	zap.Int64("segmentID", s.ID()),
+	// )
+	//
+	// var status C.CStatus
+	// GetPool().Submit(func() (any, error) {
+	// 	status = C.UpdateSealedSegmentIndex(s.ptr, loadIndexInfo.cLoadIndexInfo)
+	// 	return nil, nil
+	// }).Await()
+	//
+	// if err := HandleCStatus(&status, "UpdateSealedSegmentIndex failed"); err != nil {
+	// 	return err
+	// }
+	//
+	// log.Info("updateSegmentIndex done", zap.Int64("fieldID", indexInfo.FieldID))
+	//
+	// return nil
 }

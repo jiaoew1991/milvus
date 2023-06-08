@@ -257,8 +257,8 @@ func (node *QueryNode) WatchDmChannels(ctx context.Context, req *querypb.WatchDm
 	}, req.GetLoadMeta())
 	collection := node.manager.Collection.Get(req.GetCollectionID())
 	collection.SetMetricType(req.GetLoadMeta().GetMetricType())
-	delegator, err := delegator.NewShardDelegator(req.GetCollectionID(), req.GetReplicaID(), channel.GetChannelName(), req.GetVersion(),
-		node.clusterManager, node.manager, node.tSafeManager, node.loader, node.factory, channel.GetSeekPosition().GetTimestamp())
+	delegator, err := delegator.NewShardDelegator2(req.GetCollectionID(), req.GetReplicaID(), channel.GetChannelName(), req.GetVersion(),
+		node.clusterManager, node.manager, node.tSafeManager, node.loader, node.factory, channel.GetSeekPosition().GetTimestamp(), node.segcore)
 	if err != nil {
 		log.Warn("failed to create shard delegator", zap.Error(err))
 		return util.WrapStatus(commonpb.ErrorCode_UnexpectedError, "failed to create shard delegator", err), nil

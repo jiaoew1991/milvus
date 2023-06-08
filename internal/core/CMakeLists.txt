@@ -66,7 +66,15 @@ message( STATUS "Build version = ${MILVUS_VERSION}" )
 get_last_commit_id( LAST_COMMIT_ID )
 message( STATUS "LAST_COMMIT_ID = ${LAST_COMMIT_ID}" )
 
+message(STATUS "CC ${CMAKE_CXX_COMPILER}")
+
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+
+if ( USE_ASAN )
+    message( STATUS "Building Milvus using AddressSanitizer")
+    add_compile_options(-fno-stack-protector -fno-omit-frame-pointer -fno-var-tracking -fsanitize=address)
+    add_link_options(-fno-stack-protector -fno-omit-frame-pointer -fno-var-tracking -fsanitize=address)
+endif()
 
 # **************************** Project ****************************
 project( milvus VERSION "${MILVUS_VERSION}" )
@@ -140,7 +148,7 @@ if ( APPLE )
 endif ()
 
 # Set SIMD to CMAKE_CXX_FLAGS
-if (OPEN_SIMD) 
+if (OPEN_SIMD)
     message(STATUS "open simd function, CPU_ARCH:${CPU_ARCH}")
     if (${CPU_ARCH} STREQUAL "avx")
       #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -ftree-vectorize -mavx2 -mfma -mavx -mf16c ")

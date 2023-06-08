@@ -26,5 +26,6 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 	fi
 fi
 
+export GLOG_log_dir=/tmp/milvus/segcore.log
 echo "Starting standalone..."
-nohup ./bin/milvus run standalone > /tmp/standalone.log 2>&1 &
+nohup ./bin/milvus run standalone > /tmp/milvus/standalone.log 2>&1 &

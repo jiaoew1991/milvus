@@ -21,8 +21,10 @@ import (
 	"fmt"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/internal/distributed/segcore"
 	"github.com/milvus-io/milvus/internal/proto/internalpb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
+	"github.com/milvus-io/milvus/internal/proto/segcorepb"
 	"github.com/milvus-io/milvus/internal/querynodev2/cluster"
 	"github.com/milvus-io/milvus/internal/querynodev2/segments"
 	"github.com/milvus-io/milvus/pkg/log"
@@ -31,12 +33,14 @@ import (
 var _ cluster.Worker = &LocalWorker{}
 
 type LocalWorker struct {
-	node *QueryNode
+	node    *QueryNode
+	segcore *segcore.Client
 }
 
-func NewLocalWorker(node *QueryNode) *LocalWorker {
+func NewLocalWorker(node *QueryNode, segcore *segcore.Client) *LocalWorker {
 	return &LocalWorker{
-		node: node,
+		node:    node,
+		segcore: segcore,
 	}
 }
 
@@ -76,7 +80,15 @@ func (w *LocalWorker) Delete(ctx context.Context, req *querypb.DeleteRequest) er
 }
 
 func (w *LocalWorker) SearchSegments(ctx context.Context, req *querypb.SearchRequest) (*internalpb.SearchResults, error) {
-	return w.node.SearchSegments(ctx, req)
+	return w.segcore.SearchSegments(ctx, &segcorepb.SearchRequest{
+		Req:             req.Req,
+		DmlChannels:     req.DmlChannels,
+		SegmentIDs:      req.SegmentIDs,
+		FromShardLeader: false,
+		Scope:           segcorepb.DataScope(req.Scope),
+		TotalChannelNum: req.TotalChannelNum,
+	})
+	// return w.node.SearchSegments(ctx, req)
 }
 
 func (w *LocalWorker) QuerySegments(ctx context.Context, req *querypb.QueryRequest) (*internalpb.RetrieveResults, error) {

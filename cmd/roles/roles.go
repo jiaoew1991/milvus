@@ -17,9 +17,11 @@
 package roles
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -35,6 +37,7 @@ import (
 	"github.com/milvus-io/milvus/internal/http"
 	"github.com/milvus-io/milvus/internal/http/healthz"
 	rocksmqimpl "github.com/milvus-io/milvus/internal/mq/mqimpl/rocksmq/server"
+	"github.com/milvus-io/milvus/internal/querynodev2"
 	"github.com/milvus-io/milvus/internal/util/dependency"
 	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/metrics"
@@ -194,6 +197,43 @@ func (mr *MilvusRoles) runIndexNode(ctx context.Context, localMsg bool, wg *sync
 	return runComponent(ctx, localMsg, wg, components.NewIndexNode, metrics.RegisterIndexNode)
 }
 
+func (mr *MilvusRoles) runSegcore() {
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		log.L().Info("start segcore")
+		cmd := exec.Command("./bin/segcore", "--address", querynodev2.SegcoreAddress)
+		stdout, err := cmd.StderrPipe()
+		if err != nil {
+			log.L().Warn("Get segcore output failed", zap.Error(err))
+			return
+		}
+		if err := cmd.Start(); err != nil {
+			log.L().Warn("start segcore failed", zap.Error(err))
+			return
+		}
+		log.L().Info("started segcore")
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.Contains(line, "Server listening") {
+				wg.Done()
+			}
+			log.L().Info("segcore => " + line)
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		if err := cmd.Wait(); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}()
+	wg.Wait()
+}
+
 func (mr *MilvusRoles) setupLogger() {
 	params := paramtable.Get()
 	logConfig := log.Config{
@@ -270,6 +310,9 @@ func (mr *MilvusRoles) Run(local bool, alias string) {
 
 	http.ServeHTTP()
 
+	mr.setupLogger()
+	mr.runSegcore()
+
 	var rc *components.RootCoord
 	var wg sync.WaitGroup
 	if mr.EnableRootCoord {
@@ -336,8 +379,6 @@ func (mr *MilvusRoles) Run(local bool, alias string) {
 	}
 
 	wg.Wait()
-
-	mr.setupLogger()
 	tracer.Init()
 	setupPrometheusHTTPServer(Registry)
 

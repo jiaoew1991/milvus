@@ -606,7 +606,7 @@ message ResourceGroupInfo {
   int32 num_available_node = 3;
   // collection id -> loaded replica num
   map<int64, int32> num_loaded_replica = 4;
-  // collection id -> accessed other rg's node num 
+  // collection id -> accessed other rg's node num
   map<int64, int32> num_outgoing_node = 5;
    // collection id -> be accessed node num by other rg
   map<int64, int32> num_incoming_node = 6;
@@ -618,5 +618,5 @@ message DeleteRequest {
   string vchannel_name = 4;
   int64 segment_id = 5;
   schema.IDs primary_keys = 6;
-  repeated uint64 timestamps = 7; 
+  repeated uint64 timestamps = 7;
 }

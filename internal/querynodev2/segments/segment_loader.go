@@ -29,11 +29,11 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/internal/distributed/segcore"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/internal/querynodev2/pkoracle"
@@ -104,11 +104,48 @@ func NewLoader(
 	return loader
 }
 
+func NewLoader2(
+	manager *Manager,
+	cm storage.ChunkManager,
+	segcore *segcore.Client,
+) *segmentLoader {
+	cpuNum := runtime.GOMAXPROCS(0)
+	ioPoolSize := cpuNum * 8
+	// make sure small machines could load faster
+	if ioPoolSize < 32 {
+		ioPoolSize = 32
+	}
+	// limit the number of concurrency
+	if ioPoolSize > 256 {
+		ioPoolSize = 256
+	}
+
+	if configPoolSize := paramtable.Get().QueryNodeCfg.IoPoolSize.GetAsInt(); configPoolSize > 0 {
+		ioPoolSize = configPoolSize
+	}
+
+	ioPool := conc.NewPool[*storage.Blob](ioPoolSize, conc.WithPreAlloc(true))
+
+	log.Info("SegmentLoader created", zap.Int("ioPoolSize", ioPoolSize))
+
+	loader := &segmentLoader{
+		manager:         manager,
+		cm:              cm,
+		ioPool:          ioPool,
+		loadingSegments: typeutil.NewConcurrentMap[int64, chan struct{}](),
+		segcore:         segcore,
+	}
+
+	return loader
+}
+
 // segmentLoader is only responsible for loading the field data from binlog
 type segmentLoader struct {
 	manager *Manager
 	cm      storage.ChunkManager
 	ioPool  *conc.Pool[*storage.Blob]
+
+	segcore *segcore.Client
 
 	mut sync.Mutex
 	// The channel will be closed as the segment loaded
@@ -176,7 +213,7 @@ func (loader *segmentLoader) Load(ctx context.Context,
 			clearAll()
 			return nil, err
 		}
-		segment, err := NewSegment(collection, segmentID, partitionID, collectionID, shard, segmentType, version, info.GetStartPosition(), info.GetDeltaPosition())
+		segment, err := NewSegment2(collection, segmentID, partitionID, collectionID, shard, segmentType, version, info.GetStartPosition(), info.GetDeltaPosition(), loader.segcore)
 		if err != nil {
 			log.Error("load segment failed when create new segment",
 				zap.Int64("partitionID", partitionID),
@@ -494,15 +531,19 @@ func (loader *segmentLoader) filterPKStatsBinlogs(fieldBinlogs []*datapb.FieldBi
 }
 
 func (loader *segmentLoader) loadSealedSegmentFields(ctx context.Context, segment *LocalSegment, fields []*datapb.FieldBinlog, rowCount int64) error {
-	runningGroup, _ := errgroup.WithContext(ctx)
-	for _, field := range fields {
-		fieldBinLog := field
-		fieldID := field.FieldID
-		runningGroup.Go(func() error {
-			return segment.LoadFieldData(fieldID, rowCount, fieldBinLog)
-		})
-	}
-	err := runningGroup.Wait()
+	// runningGroup, _ := errgroup.WithContext(ctx)
+	log := log.Ctx(ctx).With(zap.Int64("segmentID", segment.segmentID), zap.Int64("collectionID", segment.collectionID))
+
+	log.Info("load field binlogs")
+	err := segment.LoadMultiFieldData(rowCount, fields)
+	// for _, field := range fields {
+	// 	fieldBinLog := field
+	// 	fieldID := field.FieldID
+	// 	runningGroup.Go(func() error {
+	// 		return segment.LoadFieldData(fieldID, rowCount, fieldBinLog)
+	// 	})
+	// }
+	// err := runningGroup.Wait()
 	if err != nil {
 		return err
 	}

@@ -44,7 +44,9 @@ class DataCodec {
 
     void
     SetTimestamps(Timestamp start_timestamp, Timestamp end_timestamp) {
-        assert(start_timestamp <= end_timestamp);
+        if (start_timestamp > end_timestamp) {
+            start_timestamp = end_timestamp;
+        }
         time_range_ = std::make_pair(start_timestamp, end_timestamp);
     }
 

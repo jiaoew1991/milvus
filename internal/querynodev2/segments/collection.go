@@ -25,17 +25,20 @@ package segments
 import "C"
 
 import (
+	"context"
 	"sync"
 	"unsafe"
 
+	"github.com/milvus-io/milvus/internal/distributed/segcore"
+	"github.com/milvus-io/milvus/internal/proto/segcorepb"
+	"github.com/milvus-io/milvus/pkg/log"
+	"go.uber.org/zap"
+
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/atomic"
-	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
-	"github.com/milvus-io/milvus/internal/proto/segcorepb"
-	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/util/typeutil"
 )
 
@@ -47,11 +50,18 @@ type CollectionManager interface {
 type collectionManager struct {
 	mut         sync.RWMutex
 	collections map[int64]*Collection
+	segcore     *segcore.Client
 }
 
 func NewCollectionManager() *collectionManager {
 	return &collectionManager{
 		collections: make(map[int64]*Collection),
+	}
+}
+func NewCollectionManager2(segcore *segcore.Client) *collectionManager {
+	return &collectionManager{
+		collections: make(map[int64]*Collection),
+		segcore:     segcore,
 	}
 }
 
@@ -70,7 +80,21 @@ func (m *collectionManager) Put(collectionID int64, schema *schemapb.CollectionS
 		return
 	}
 
-	collection := NewCollection(collectionID, schema, meta, loadMeta.GetLoadType())
+	_, err := m.segcore.NewCollection(context.Background(), &segcorepb.NewCollectionRequest{
+		CollectionID: collectionID,
+		Schema:       schema,
+	})
+	if err != nil {
+		return
+	}
+
+	// collection := NewCollection(collectionID, schema, meta, loadMeta.GetLoadType())
+	collection := &Collection{
+		id:         collectionID,
+		schema:     schema,
+		partitions: typeutil.NewConcurrentSet[int64](),
+		loadType:   loadMeta.GetLoadType(),
+	}
 	collection.metricType.Store(loadMeta.GetMetricType())
 	collection.AddPartition(loadMeta.GetPartitionIDs()...)
 	m.collections[collectionID] = collection

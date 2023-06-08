@@ -14,12 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-option(EMBEDDED_MILVUS "Enable embedded Milvus" OFF)
-
-if(EMBEDDED_MILVUS)
-    add_compile_definitions(EMBEDDED_MILVUS)
-endif()
-
 milvus_add_pkg_config("milvus_storage")
 
 set(STORAGE_FILES
@@ -45,12 +39,9 @@ set(STORAGE_FILES
 
 add_library(milvus_storage SHARED ${STORAGE_FILES})
 
-find_package(Boost REQUIRED COMPONENTS filesystem)
-
-target_link_libraries(milvus_storage PUBLIC 
-        milvus_common 
-        Boost::filesystem 
-        pthread 
+target_link_libraries(milvus_storage PUBLIC
+        milvus_common
+        pthread
         ${CONAN_LIBS}
         )
 

@@ -9,12 +9,6 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License
 
-option( EMBEDDED_MILVUS "Enable embedded Milvus" OFF )
-
-if ( EMBEDDED_MILVUS )
-    add_compile_definitions( EMBEDDED_MILVUS )
-endif()
-
 milvus_add_pkg_config("milvus_segcore")
 
 set(SEGCORE_FILES
@@ -41,18 +35,12 @@ set(SEGCORE_FILES
         ConcurrentVector.cpp)
 add_library(milvus_segcore SHARED ${SEGCORE_FILES})
 
-find_library(TBB NAMES tbb)
-set(PLATFORM_LIBS dl)
-
-if (MSYS)
-  set(PLATFORM_LIBS )
-endif()
-
-target_link_libraries(milvus_segcore
-        milvus_query
-        ${PLATFORM_LIBS}
-        ${TBB}
-        ${OpenMP_CXX_FLAGS}
-        )
+target_link_libraries(milvus_segcore milvus_query)
 
 install(TARGETS milvus_segcore DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+
+add_executable(segcore Main.cpp)
+
+target_link_libraries(segcore milvus_segcore)
+
+install(TARGETS segcore DESTINATION "${CMAKE_INSTALL_BINDIR}")

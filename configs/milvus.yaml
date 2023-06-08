@@ -59,7 +59,7 @@ mysql:
   maxIdleConns: 5
 
 localStorage:
-  path: /var/lib/milvus/data/ # please adjust in embedded Milvus: /tmp/milvus/data/
+  path: /tmp/milvus/data/ # please adjust in embedded Milvus: /tmp/milvus/data/
 
 # Related configuration of MinIO/S3/GCS or any other service supports S3 API, which is responsible for data persistence for Milvus.
 # We refer to the storage service as MinIO/S3 in the following description for simplicity.
@@ -118,7 +118,7 @@ pulsar:
 rocksmq:
   # The path where the message is stored in rocksmq
   # please adjust in embedded Milvus: /tmp/milvus/rdb_data
-  path: /var/lib/milvus/rdb_data
+  path: /tmp/milvus/rdb_data
   lrucacheratio: 0.06 # rocksdb cache memory ratio
   rocksmqPageSize: 67108864 # 64 MB, 64 * 1024 * 1024 bytes, The size of each page of messages in rocksmq
   retentionTimeInMinutes: 4320 # 3 days, 3 * 24 * 60 minutes, The retention time of the message in rocksmq.
@@ -458,9 +458,9 @@ common:
     enabled: false
     # support pre-created topics
     # the name of pre-created topics
-    names: ["topic1", "topic2"]
+    names: ['topic1', 'topic2']
     # need to set a separated topic to stand for currently consumed timestamp for each channel
-    timeticker: "timetick-channel"
+    timeticker: 'timetick-channel'
 
   ImportMaxFileSize: 17179869184 # 16 * 1024 * 1024 * 1024
   # max file size to import for bulkInsert

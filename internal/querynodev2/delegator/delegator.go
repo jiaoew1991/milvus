@@ -30,6 +30,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/internal/distributed/segcore"
 	"github.com/milvus-io/milvus/internal/proto/internalpb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/internal/querynodev2/cluster"
@@ -134,6 +135,8 @@ type shardDelegator struct {
 	wg          sync.WaitGroup
 	tsCond      *sync.Cond
 	latestTsafe *atomic.Uint64
+
+	segcore *segcore.Client
 }
 
 // getLogger returns the zap logger with pre-defined shard attributes.
@@ -590,6 +593,43 @@ func NewShardDelegator(collectionID UniqueID, replicaID UniqueID, channel string
 		latestTsafe:    atomic.NewUint64(0),
 		loader:         loader,
 		factory:        factory,
+	}
+	m := sync.Mutex{}
+	sd.tsCond = sync.NewCond(&m)
+	sd.wg.Add(1)
+	go sd.watchTSafe()
+	return sd, nil
+}
+
+func NewShardDelegator2(collectionID UniqueID, replicaID UniqueID, channel string, version int64,
+	workerManager cluster.Manager, manager *segments.Manager, tsafeManager tsafe.Manager, loader segments.Loader,
+	factory msgstream.Factory, startTs uint64, segcore *segcore.Client) (ShardDelegator, error) {
+
+	collection := manager.Collection.Get(collectionID)
+	if collection == nil {
+		return nil, fmt.Errorf("collection(%d) not found in manager", collectionID)
+	}
+
+	maxSegmentDeleteBuffer := paramtable.Get().QueryNodeCfg.MaxSegmentDeleteBuffer.GetAsInt64()
+	log.Info("Init delte cache", zap.Int64("maxSegmentCacheBuffer", maxSegmentDeleteBuffer), zap.Time("startTime", tsoutil.PhysicalTime(startTs)))
+
+	sd := &shardDelegator{
+		collectionID:   collectionID,
+		replicaID:      replicaID,
+		vchannelName:   channel,
+		version:        version,
+		collection:     collection,
+		segmentManager: manager.Segment,
+		workerManager:  workerManager,
+		lifetime:       newLifetime(),
+		distribution:   NewDistribution(),
+		deleteBuffer:   deletebuffer.NewDoubleCacheDeleteBuffer[*deletebuffer.Item](startTs, maxSegmentDeleteBuffer),
+		pkOracle:       pkoracle.NewPkOracle(),
+		tsafeManager:   tsafeManager,
+		latestTsafe:    atomic.NewUint64(0),
+		loader:         loader,
+		factory:        factory,
+		segcore:        segcore,
 	}
 	m := sync.Mutex{}
 	sd.tsCond = sync.NewCond(&m)

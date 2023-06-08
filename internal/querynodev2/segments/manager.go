@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/milvus-io/milvus/internal/distributed/segcore"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/pkg/metrics"
 	"github.com/milvus-io/milvus/pkg/util/paramtable"
@@ -75,6 +76,13 @@ type Manager struct {
 func NewManager() *Manager {
 	return &Manager{
 		Collection: NewCollectionManager(),
+		Segment:    NewSegmentManager(),
+	}
+}
+
+func NewManager2(segcore *segcore.Client) *Manager {
+	return &Manager{
+		Collection: NewCollectionManager2(segcore),
 		Segment:    NewSegmentManager(),
 	}
 }

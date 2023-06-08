@@ -16,7 +16,14 @@ add_library(milvus_proto STATIC
     index_cgo_msg.pb.cc
     plan.pb.cc
     schema.pb.cc
+    milvus.pb.cc
+    feder.pb.cc
+    internal.pb.cc
+    msg.pb.cc
     segcore.pb.cc
+    segcore.grpc.pb.cc
+    data_coord.pb.cc
+    index_coord.pb.cc
     )
 message(STATUS "milvus proto sources: " ${milvus_proto_srcs})
 

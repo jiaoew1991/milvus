@@ -104,8 +104,8 @@ func (d *distribution) GetSegments(readable bool, partitions ...int64) (sealed [
 	version = current.version
 
 	if readable {
-		TargetVersion := current.GetTargetVersion()
-		sealed, growing = d.filterReadableSegments(sealed, growing, TargetVersion)
+		targetVersion := current.GetTargetVersion()
+		sealed, growing = d.filterReadableSegments(sealed, growing, targetVersion)
 		return
 	}
 

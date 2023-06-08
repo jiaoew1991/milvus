@@ -4,6 +4,164 @@ package milvus.proto.segcore;
 option go_package = "github.com/milvus-io/milvus/internal/proto/segcorepb";
 import "schema.proto";
 import "common.proto";
+import "msg.proto";
+import "internal.proto";
+import "milvus.proto";
+import "data_coord.proto";
+
+service Segcore {
+  rpc GetComponentStates(milvus.GetComponentStatesRequest) returns (milvus.ComponentStates) {}
+
+  rpc NewCollection(NewCollectionRequest) returns (common.Status) {}
+  rpc DeleteCollection(DeleteCollectionRequest) returns (common.Status) {}
+
+  rpc LoadSegments(LoadSegmentsRequest) returns (common.Status) {}
+  rpc ReleaseSegments(ReleaseSegmentsRequest) returns (common.Status) {}
+  rpc UpdateSegmentIndex(UpdateIndexRequest) returns (common.Status) {}
+
+  rpc SearchSegments(SearchRequest) returns (internal.SearchResults) {}
+  rpc QuerySegments(QueryRequest) returns (internal.RetrieveResults) {}
+
+  rpc Delete(DeleteRequest) returns (common.Status) {}
+  rpc Insert(InsertRequest) returns (common.Status) {}
+}
+
+message NewCollectionRequest {
+  int64 collectionID = 1;
+  schema.CollectionSchema schema = 2;
+}
+
+message DeleteCollectionRequest {
+  int64 collectionID = 1;
+}
+
+message LoadSegmentsRequest {
+  common.MsgBase base = 1;
+  // int64 dst_nodeID = 2;
+  // repeated SegmentLoadInfo infos = 3;
+  // schema.CollectionSchema schema = 4;
+  // int64 source_nodeID = 5;
+  int64 collectionID = 2;
+  int64 segmentId = 3;
+  // LoadMetaInfo load_meta = 7;
+  int64 rowCount = 4;
+  repeated data.FieldBinlog fields = 5;
+  string mmap_dir_path = 6;
+  // int64 replicaID = 8;
+  // repeated msg.MsgPosition delta_positions = 9; // keep it for compatibility of rolling upgrade from 2.2.x to 2.3
+  // int64 version = 10;
+  // bool need_transfer = 11;
+  // LoadScope load_scope = 12;
+}
+
+message UpdateIndexRequest {
+  common.MsgBase base = 1;
+  int64 collectionID = 2;
+  int64 partitionID = 3;
+  int64 segmentID = 4;
+  int64 fieldID = 5;
+  int64 field_type = 6;
+  int64 indexID = 7;
+  int64 indexBuildID = 8;
+  int64 indexVersion = 9;
+  repeated common.KeyValuePair index_params = 10;
+  repeated string index_files = 11;
+}
+
+message ReleaseSegmentsRequest {
+  common.MsgBase base = 1;
+  int64 nodeID = 2;
+  // Not useful for now
+  int64 dbID = 3;
+  int64 collectionID = 4;
+  repeated int64 partitionIDs = 5;
+  repeated int64 segmentIDs = 6;
+  DataScope scope = 7; // All, Streaming, Historical
+  string shard = 8;
+  bool need_transfer = 11;
+}
+
+message SearchRequest {
+  internal.SearchRequest req = 1;
+  repeated string dml_channels = 2;
+  repeated int64 segmentIDs = 3;
+  bool from_shard_leader = 4;
+  DataScope scope = 5; // All, Streaming, Historical
+  int32 total_channel_num = 6;
+}
+
+message QueryRequest {
+  internal.RetrieveRequest req = 1;
+  repeated string dml_channels = 2;
+  repeated int64 segmentIDs = 3;
+  bool from_shard_leader = 4;
+  DataScope scope = 5; // All, Streaming, Historical
+}
+
+message DeleteRequest {
+  common.MsgBase base = 1;
+  int64 collection_id = 2;
+  int64 partition_id = 3;
+  string vchannel_name = 4;
+  int64 segment_id = 5;
+  schema.IDs primary_keys = 6;
+  repeated uint64 timestamps = 7;
+}
+
+message InsertRequest {
+  common.MsgBase base = 1;
+  int64 collectionID = 2;
+  int64 segmentID = 3;
+  repeated int64 rowIDs = 4;
+  repeated uint64 timestamps = 5;
+  InsertRecord record = 6;
+}
+
+message SegmentLoadInfo {
+  int64 segmentID = 1;
+  int64 partitionID = 2;
+  int64 collectionID = 3;
+  int64 dbID = 4;
+  int64 flush_time = 5;
+  repeated data.FieldBinlog binlog_paths = 6;
+  int64 num_of_rows = 7;
+  repeated data.FieldBinlog statslogs = 8;
+  repeated data.FieldBinlog deltalogs = 9;
+  repeated int64 compactionFrom = 10; // segmentIDs compacted from
+  repeated FieldIndexInfo index_infos = 11;
+  int64 segment_size = 12;
+  string insert_channel = 13;
+  msg.MsgPosition start_position = 14;
+  msg.MsgPosition delta_position = 15;
+}
+
+message LoadMetaInfo {
+  // LoadType load_type = 1;
+  int64 collectionID = 2;
+  repeated int64 partitionIDs = 3;
+  string metric_type = 4;
+}
+
+enum DataScope {
+  UnKnown = 0;
+  All = 1;
+  Streaming = 2;
+  Historical = 3;
+}
+
+message FieldIndexInfo {
+  int64 fieldID =1;
+  // deprecated
+  bool enable_index = 2;
+  string index_name = 3;
+  int64 indexID = 4;
+  int64 buildID = 5;
+  repeated common.KeyValuePair index_params = 6;
+  repeated string index_file_paths = 7;
+  int64 index_size = 8;
+  int64 index_version = 9;
+  int64 num_rows = 10;
+}
 
 message RetrieveResults {
   schema.IDs ids = 1;

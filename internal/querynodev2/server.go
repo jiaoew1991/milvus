@@ -46,6 +46,7 @@ import (
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	grpcquerynodeclient "github.com/milvus-io/milvus/internal/distributed/querynode/client"
+	"github.com/milvus-io/milvus/internal/distributed/segcore"
 	"github.com/milvus-io/milvus/internal/querynodev2/cluster"
 	"github.com/milvus-io/milvus/internal/querynodev2/delegator"
 	"github.com/milvus-io/milvus/internal/querynodev2/pipeline"
@@ -68,6 +69,8 @@ import (
 	"github.com/milvus-io/milvus/pkg/util/typeutil"
 	"github.com/samber/lo"
 )
+
+const SegcoreAddress = "unix:///tmp/segcore.socket"
 
 // make sure QueryNode implements types.QueryNode
 var _ types.QueryNode = (*QueryNode)(nil)
@@ -101,6 +104,8 @@ type QueryNode struct {
 	pipelineManager     pipeline.Manager
 	subscribingChannels *typeutil.ConcurrentSet[string]
 	delegators          *typeutil.ConcurrentMap[string, delegator.ShardDelegator]
+
+	segcore *segcore.Client
 
 	// segment loader
 	loader segments.Loader
@@ -288,7 +293,7 @@ func (node *QueryNode) Init() error {
 
 		node.clusterManager = cluster.NewWorkerManager(func(nodeID int64) (cluster.Worker, error) {
 			if nodeID == paramtable.GetNodeID() {
-				return NewLocalWorker(node), nil
+				return NewLocalWorker(node, node.segcore), nil
 			}
 
 			sessions, _, err := node.session.GetSessions(typeutil.QueryNodeRole)
@@ -304,17 +309,20 @@ func (node *QueryNode) Init() error {
 				}
 			}
 
+			// host := strings.Split(addr, ":")[0]
+			// client, err := grpcquerynodeclient.NewClient(node.ctx, fmt.Sprintf("%s:19352", host))
 			client, err := grpcquerynodeclient.NewClient(node.ctx, addr)
 			if err != nil {
 				return nil, err
 			}
 
-			return cluster.NewRemoteWorker(client), nil
+			return cluster.NewRemoteWorker(client, node.segcore), nil
 		})
 		node.delegators = typeutil.NewConcurrentMap[string, delegator.ShardDelegator]()
 		node.subscribingChannels = typeutil.NewConcurrentSet[string]()
-		node.manager = segments.NewManager()
-		node.loader = segments.NewLoader(node.manager, node.vectorStorage)
+		node.segcore = segcore.NewClient(SegcoreAddress)
+		node.manager = segments.NewManager2(node.segcore)
+		node.loader = segments.NewLoader2(node.manager, node.vectorStorage, node.segcore)
 		node.dispClient = msgdispatcher.NewClient(node.factory, typeutil.QueryNodeRole, paramtable.GetNodeID())
 		// init pipeline manager
 		node.pipelineManager = pipeline.NewManager(node.manager, node.tSafeManager, node.dispClient, node.delegators)

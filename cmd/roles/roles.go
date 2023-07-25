@@ -87,7 +87,7 @@ func cleanLocalDir(path string) {
 }
 
 func runComponent[T component](ctx context.Context,
-	localMsg bool,
+	standalone bool,
 	runWg *sync.WaitGroup,
 	creator func(context.Context, dependency.Factory) (T, error),
 	metricRegister func(*prometheus.Registry),
@@ -96,10 +96,10 @@ func runComponent[T component](ctx context.Context,
 
 	sign := make(chan struct{})
 	go func() {
-		factory := dependency.NewFactory(localMsg)
+		factory := dependency.NewFactory(standalone)
 		var err error
 		role, err = creator(ctx, factory)
-		if localMsg {
+		if standalone {
 			paramtable.SetRole(typeutil.StandaloneRole)
 		} else {
 			paramtable.SetRole(role.GetName())
@@ -161,52 +161,52 @@ func (mr *MilvusRoles) printLDPreLoad() {
 	}
 }
 
-func (mr *MilvusRoles) runRootCoord(ctx context.Context, localMsg bool, wg *sync.WaitGroup) *components.RootCoord {
+func (mr *MilvusRoles) runRootCoord(ctx context.Context, standalone bool, wg *sync.WaitGroup) *components.RootCoord {
 	wg.Add(1)
-	return runComponent(ctx, localMsg, wg, components.NewRootCoord, metrics.RegisterRootCoord)
+	return runComponent(ctx, standalone, wg, components.NewRootCoord, metrics.RegisterRootCoord)
 }
 
-func (mr *MilvusRoles) runProxy(ctx context.Context, localMsg bool, wg *sync.WaitGroup) *components.Proxy {
+func (mr *MilvusRoles) runProxy(ctx context.Context, standalone bool, wg *sync.WaitGroup) *components.Proxy {
 	wg.Add(1)
-	return runComponent(ctx, localMsg, wg, components.NewProxy, metrics.RegisterProxy)
+	return runComponent(ctx, standalone, wg, components.NewProxy, metrics.RegisterProxy)
 }
 
-func (mr *MilvusRoles) runQueryCoord(ctx context.Context, localMsg bool, wg *sync.WaitGroup) *components.QueryCoord {
+func (mr *MilvusRoles) runQueryCoord(ctx context.Context, standalone bool, wg *sync.WaitGroup) *components.QueryCoord {
 	wg.Add(1)
-	return runComponent(ctx, localMsg, wg, components.NewQueryCoord, metrics.RegisterQueryCoord)
+	return runComponent(ctx, standalone, wg, components.NewQueryCoord, metrics.RegisterQueryCoord)
 }
 
-func (mr *MilvusRoles) runQueryNode(ctx context.Context, localMsg bool, wg *sync.WaitGroup) *components.QueryNode {
+func (mr *MilvusRoles) runQueryNode(ctx context.Context, standalone bool, wg *sync.WaitGroup) *components.QueryNode {
 	wg.Add(1)
 	rootPath := paramtable.Get().LocalStorageCfg.Path.GetValue()
 	queryDataLocalPath := filepath.Join(rootPath, typeutil.QueryNodeRole)
 	cleanLocalDir(queryDataLocalPath)
 
-	return runComponent(ctx, localMsg, wg, components.NewQueryNode, metrics.RegisterQueryNode)
+	return runComponent(ctx, standalone, wg, components.NewQueryNode, metrics.RegisterQueryNode)
 }
 
-func (mr *MilvusRoles) runDataCoord(ctx context.Context, localMsg bool, wg *sync.WaitGroup) *components.DataCoord {
+func (mr *MilvusRoles) runDataCoord(ctx context.Context, standalone bool, wg *sync.WaitGroup) *components.DataCoord {
 	wg.Add(1)
-	return runComponent(ctx, localMsg, wg, components.NewDataCoord, metrics.RegisterDataCoord)
+	return runComponent(ctx, standalone, wg, components.NewDataCoord, metrics.RegisterDataCoord)
 }
 
-func (mr *MilvusRoles) runDataNode(ctx context.Context, localMsg bool, wg *sync.WaitGroup) *components.DataNode {
+func (mr *MilvusRoles) runDataNode(ctx context.Context, standalone bool, wg *sync.WaitGroup) *components.DataNode {
 	wg.Add(1)
-	return runComponent(ctx, localMsg, wg, components.NewDataNode, metrics.RegisterDataNode)
+	return runComponent(ctx, standalone, wg, components.NewDataNode, metrics.RegisterDataNode)
 }
 
-func (mr *MilvusRoles) runIndexCoord(ctx context.Context, localMsg bool, wg *sync.WaitGroup) *components.IndexCoord {
+func (mr *MilvusRoles) runIndexCoord(ctx context.Context, standalone bool, wg *sync.WaitGroup) *components.IndexCoord {
 	wg.Add(1)
-	return runComponent(ctx, localMsg, wg, components.NewIndexCoord, func(registry *prometheus.Registry) {})
+	return runComponent(ctx, standalone, wg, components.NewIndexCoord, func(registry *prometheus.Registry) {})
 }
 
-func (mr *MilvusRoles) runIndexNode(ctx context.Context, localMsg bool, wg *sync.WaitGroup) *components.IndexNode {
+func (mr *MilvusRoles) runIndexNode(ctx context.Context, standalone bool, wg *sync.WaitGroup) *components.IndexNode {
 	wg.Add(1)
 	rootPath := paramtable.Get().LocalStorageCfg.Path.GetValue()
 	indexDataLocalPath := filepath.Join(rootPath, typeutil.IndexNodeRole)
 	cleanLocalDir(indexDataLocalPath)
 
-	return runComponent(ctx, localMsg, wg, components.NewIndexNode, metrics.RegisterIndexNode)
+	return runComponent(ctx, standalone, wg, components.NewIndexNode, metrics.RegisterIndexNode)
 }
 
 func (mr *MilvusRoles) setupLogger() {
